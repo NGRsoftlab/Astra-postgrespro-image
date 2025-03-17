@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+set -a
+
+DEBCONF_NONINTERACTIVE_SEEN=true
+DEBIAN_FRONTEND=noninteractive
+DEBIAN_PRIORITY=critical
+TERM=linux
+set +a
+
+exec "$@"
