@@ -20,9 +20,7 @@ LABEL \
 ARG version=1.0.0
 ARG postgrespro_link=https://repo.postgrespro.ru/std/std-15/keys/pgpro-repo-add.sh
 ARG postgrespro_package_suffix='std-15'
-
-## Set volume
-VOLUME "/var/lib/pgpro/${postgrespro_package_suffix}/data"
+ARG postgrespro_version=15
 
 ## ENV for build args
 ENV \
@@ -35,10 +33,16 @@ ENV \
 ## Set postgres variables
     PG_USER=postgres \
     PG_DIR="/var/lib/pgpro/${postgrespro_package_suffix}" \
-    PG_VERSION_SUFFIX="${postgrespro_package_suffix}"
+    PG_VERSION_SUFFIX="${postgrespro_package_suffix}" \
+    PG_MAJOR="${postgrespro_version}"
 
 ## https://github.com/hadolint/hadolint/wiki/DL3044
-ENV PG_DATA="${PG_DIR}/data"
+ENV \
+    PGDATA="${PG_DIR}/data" \
+    BINDIR="/opt/pgpro/${PG_VERSION_SUFFIX}/bin" \
+    PG_OOM_ADJUST_VALUE=0 \
+    PG_OOM_ADJUST_FILE=/proc/self/oom_score_adj \
+    PG_LOG="${PG_DIR}/pgstartup-data.log"
 
 ## Copy build scripts
 COPY scripts/. /usr/local/sbin/
@@ -52,6 +56,13 @@ RUN \
         locales \
         wget \
         dumb-init \
+        libnss-wrapper \
+        xz-utils \
+        zstd \
+## https://www.postgresql.org/docs/16/app-psql.html#APP-PSQL-META-COMMAND-PSET-PAGER
+## https://github.com/postgres/postgres/blob/REL_16_1/src/include/fe_utils/print.h#L25
+## (if "less" is available, it gets used as the default pager for psql, and it only adds ~1.5MiB to our image size)
+        less \
 ## Update locales
     && locale-gen ru_RU ru_RU.UTF-8 en_US.UTF-8 \
     && dpkg-reconfigure locales \
@@ -74,13 +85,43 @@ RUN \
 ## Temporary directory for installer
 WORKDIR /tmp
 
+## Copy '.c' file
+COPY ./configuration/su-exec.c su-exec.c
+
+## Install build components for compile su-exec
+# hadolint ignore=DL3008, DL3027
+RUN \
+    apt update \
+    && apt-env.sh apt -y install --no-install-recommends -qq \
+        gcc \
+        libc-dev \
+## Compile su-exec
+    && gcc -Os -no-pie -static -std=gnu99 -s -Wall -Werror \
+        -o /usr/local/bin/su-exec su-exec.c \
+    && chmod 0700 /usr/local/bin/su-exec \
+## Remove packages
+    && apt-env.sh apt-remove.sh gcc libc-dev \
+## Remove cache
+    && apt-clean.sh
+
 ## Install postgres
 RUN \
-    wget --progress=dot:giga \
+    groupadd -r postgres --gid=999 \
+## https://salsa.debian.org/postgresql/postgresql-common/blob/997d842ee744687d99a2b2d95c1083a2615c79e8/debian/postgresql-common.postinst#L32-35
+    && useradd -r -g postgres --uid=999 --home-dir="${PG_DIR}" --shell=/bin/bash postgres \
+    && wget --progress=dot:giga \
         "${postgrespro_link}" \
     && apt-env.sh sh pgpro-repo-add.sh \
     && apt-env.sh apt -y install --no-install-recommends -qq \
         postgrespro-"${PG_VERSION_SUFFIX}" \
+    && mkdir /docker-entrypoint-initdb.d \
+    && mkdir -p /usr/share/postgresql \
+    && dpkg-divert --add --rename --divert "/usr/share/postgresql/postgresql.conf.sample.dpkg" "${BINDIR%/*}/share/postgresql.conf.sample" \
+    && cp -v /usr/share/postgresql/postgresql.conf.sample.dpkg /usr/share/postgresql/postgresql.conf.sample \
+    && ln -sv /usr/share/postgresql/postgresql.conf.sample "${BINDIR%/*}/share/" \
+    && sed -ri "s!^#?(listen_addresses)\s*=\s*\S+.*!\1 = '*'!" /usr/share/postgresql/postgresql.conf.sample \
+    && grep -F "listen_addresses = '*'" /usr/share/postgresql/postgresql.conf.sample \
+## Remove packages
     && apt-env.sh apt-remove.sh wget \
 ## Remove cache
     && apt-clean.sh
@@ -194,6 +235,7 @@ RUN \
             rtcwake \
             sg \
             shadowconfig \
+            su \
             sulogin \
             swaplabel \
             swapoff \
@@ -220,8 +262,22 @@ RUN \
 ## Prune unused files
 RUN \
     find /usr/local/sbin/ ! -type d -ls -delete \
+    find /tmp/ ! -type d -ls -delete \
     && find /run/ -mindepth 1 -ls -delete || : \
     && install -d -m 01777 /run/lock
+
+## Create postgres space dirs
+RUN \
+    install --verbose --directory --owner postgres --group postgres --mode 3777 /var/run/postgresql \
+## Also create the postgres user's home directory with appropriate permissions
+## See https://github.com/docker-library/postgres/issues/274
+    && install --verbose --directory --owner postgres --group postgres --mode 1777 "${PG_DIR}" \
+## This 1777 will be replaced by 0700 at runtime (allows semi-arbitrary "--user" values)
+    && install --verbose --directory --owner postgres --group postgres --mode 1777 "${PGDATA}" \
+    && install --verbose --directory --owner postgres --group postgres --mode 1777 "/etc/postgresql"
+
+## Set volume
+VOLUME "${PGDATA}"
 
 ## Copy entrypoint file
 COPY configuration/docker-entrypoint.sh /sbin/docker-entrypoint.sh
@@ -230,7 +286,31 @@ COPY configuration/docker-entrypoint.sh /sbin/docker-entrypoint.sh
 EXPOSE 5432/tcp
 
 ## Set base directory
-WORKDIR "/var/lib/pgpro/${PG_VERSION_SUFFIX}"
+WORKDIR "${PG_DIR}"
 
-ENTRYPOINT [ "dumb-init", "--" ]
-CMD [ "docker-entrypoint.sh", "postgres" ]
+ENTRYPOINT [ "dumb-init", "docker-entrypoint.sh" ]
+
+## Calls "Fast Shutdown mode" wherein new connections are disallowed and any
+## in-progress transactions are aborted, allowing PostgreSQL to stop cleanly and
+## flush tables to disk.
+#
+## See https://www.postgresql.org/docs/current/server-shutdown.html for more details
+## about available PostgreSQL server shutdown signals.
+#
+## See also https://www.postgresql.org/docs/current/server-start.html for further
+## justification of this as the default value, namely that the example (and
+## shipped) systemd service files use the "Fast Shutdown mode" for service
+## termination.
+
+STOPSIGNAL SIGINT
+
+## An additional setting that is recommended for all users regardless of this
+## value is the runtime "--stop-timeout" (or your orchestrator/runtime's
+## equivalent) for controlling how long to wait between sending the defined
+## STOPSIGNAL and sending SIGKILL.
+#
+## The default in most runtimes (such as Docker) is 10 seconds, and the
+## documentation at https://www.postgresql.org/docs/current/server-start.html notes
+## that even 90 seconds may not be long enough in many instances.
+
+CMD [ "postgres" ]

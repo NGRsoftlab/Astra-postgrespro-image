@@ -1,0 +1,148 @@
+---
+# version: "3"
+
+# set env variable COMPOSE_PROJECT_NAME and
+# label com.docker.compose.project
+name: postgres
+
+# loging
+x-logging-default: &x-logging-default
+  logging:
+    driver: json-file
+    options:
+      max-file: "10"
+      max-size: "40m"
+
+# labels
+x-labels:
+  &label-group
+  org.label-schema.group: "postgres"
+
+# env files anchor
+x-env-default:
+  - &env-default
+    path: ./.env
+    required: true # default
+
+networks:
+  secure-db:
+    name: secure-db
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+      com.docker.network.bridge.name: "secure-db"
+
+volumes:
+  secure-postgres:
+    name: secure-postgres
+    driver: local
+
+services:
+  postgres:
+    <<: *x-logging-default
+    image: &postgresImage postgres-pro:${POSTGRESQL_VERSION:-15}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: "secure-db"
+    stop_grace_period: 2m
+    stop_signal: SIGINT
+    restart: always
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    # https://github.com/docker-library/postgres/issues/154
+    tmpfs:
+      # For read-only filesystem, need to create a volume/tmpfs for PostgreSQL to run its much
+      # needed configuration. The read-only flag does not make volumes and tmpfs read-only.
+      - /tmp:noexec
+      - /run:noexec
+      - /run/postgresql:noexec
+    volumes:
+      # - type: volume
+      #   source: secure-postgres
+      #   target: /var/lib/pgpro/std-15
+      #   volume:
+      #     nocopy: true
+      # Additional chown 2000:2000 to source path
+      - type: bind
+        source: ./test/data/psql
+        target: /var/lib/pgpro/std-15/data
+      - type: bind
+        source: certs
+        target: /var/lib/pgpro/std-15/certificates
+    command: >
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/pgpro/std-15/certificates/server.crt
+      -c ssl_key_file=/var/lib/pgpro/std-15/certificates/server.key
+    # See https://github.com/docker-library/docs/blob/master/postgres/README.md#arbitrary---user-notes
+    # Will still see the error:
+    # "chmod: changing permissions of '/var/run/postgresql': Operation not permitted"
+    # But this can be ignored:
+    # https://github.com/docker-library/postgres/issues/853
+    user: 2000:2000
+    env_file:
+      - <<: *env-default
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - secure-db
+    labels:
+      <<: *label-group
+
+  postgres-backups:
+    <<: *x-logging-default
+    image: *postgresImage
+    hostname: "secure-db-backup"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - <<: *env-default
+    # Backups
+    # The `postgres-backups` container in the configuration is responsible for the following:
+    # 1. **Database Backup**: Creates compressed backups of the PostgreSQL database using pg_dump
+    # Customizable backup path, filename pattern, and schedule through variables like `POSTGRES_BACKUPS_PATH`, `POSTGRES_BACKUP_NAME`, and `BACKUP_INTERVAL`
+    # 2. **Backup Pruning**: Periodically removes backups exceeding a specified age to manage storage
+    # Customizable pruning schedule and age threshold with `POSTGRES_BACKUP_PRUNE_DAYS`
+    # By utilizing this container, consistent and automated backups of the essential components of your instance are ensured
+    # Moreover, efficient management of backup storage and tailored backup routines can be achieved through easy and flexible configuration using environment variables
+    # 3. If backup continue with NON-zero status, backup operation will repeat after `BACKUP_FAILURE_INTERVAL`
+    command: >
+      bash -c '
+                echo "{\"lvl\": \"info\", \"msg\": \"starting backup postgres container every $${BACKUP_INTERVAL}\"}" >> /proc/1/fd/1 &&
+                sleep $${BACKUP_INIT_SLEEP} &&
+                while true; do
+                  DATE_BACKUP="$$(date "+%Y-%m-%d_%H-%M")"
+                  OUTPUT_POSTGRES="$$( { PGPASSWORD="$${POSTGRES_PASSWORD}" pg_dump -h postgres -p 5432 -d $${POSTGRES_DB} -U $${POSTGRES_USER} | gzip > $${POSTGRES_BACKUPS_PATH}/$${POSTGRES_BACKUP_NAME}-$${DATE_BACKUP}.gz; } 2>&1 )"
+                  if [[ -z $${OUTPUT_POSTGRES} ]]; then
+                    echo "{\"lvl\": \"info\", \"msg\": \"backup and compress postgres file - $$(du -h $${POSTGRES_BACKUPS_PATH}/$${POSTGRES_BACKUP_NAME}-$${DATE_BACKUP}.gz) is completed\"}" >> /proc/1/fd/1 &&
+                    find $${POSTGRES_BACKUPS_PATH} -type f -mtime +$${POSTGRES_BACKUP_PRUNE_DAYS} | xargs rm -f;
+                    sleep $${BACKUP_INTERVAL}
+                  else
+                    [[ -n $${OUTPUT_POSTGRES} ]] || OUTPUT_POSTGRES="Successfully backup"
+                    echo "{\"lvl\": \"error\", \"msg\": \"postgres backup status: $$( echo $${OUTPUT_POSTGRES} ), retry after $${BACKUP_FAILURE_INTERVAL}\"}" >> /proc/1/fd/1;
+                    sleep $${BACKUP_FAILURE_INTERVAL}
+                  fi;
+                done
+              '
+    volumes:
+      # Database backups location
+      - ./test/data/backup:${POSTGRES_BACKUPS_PATH}
+    networks:
+      - secure-db
+    labels:
+      <<: *label-group
+...

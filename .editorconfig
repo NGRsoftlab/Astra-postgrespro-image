@@ -18,6 +18,6 @@ never_split        = true  # like -ns
 # space_redirects    = true  # like -sr
 # function_next_line = true  # like -fn
 
-[*/**.conf]
-indent_style = space
+[*/**.c]
+indent_style = tab
 indent_size = 2

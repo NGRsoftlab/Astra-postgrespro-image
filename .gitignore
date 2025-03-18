@@ -1,3 +1,9 @@
 .idea
 tmp
 test.sh
+*.key
+*.crt
+*.pem
+certs
+*.conf
+test/
