@@ -29,6 +29,7 @@ ENV \
     LC_ALL=C.UTF-8 \
     TERM=linux \
     TZ=Etc/UTC \
+## https://devcenter.heroku.com/articles/tuning-glibc-memory-behavior
     MALLOC_ARENA_MAX=2 \
 ## Set postgres variables
     PG_USER=postgres \
@@ -76,12 +77,6 @@ RUN \
 ## Set locale language
 ENV LANG=ru_RU.UTF-8
 
-## Reduce perl-base: hardlink->symlink
-RUN \
-    PERL_BASE=/usr/bin \
-    && find "${PERL_BASE}/" -wholename "${PERL_BASE}/perl5*" -exec ln -fsv perl {} ';' \
-    && ls -li "${PERL_BASE}/perl"*
-
 ## Temporary directory for installer
 WORKDIR /tmp
 
@@ -121,163 +116,182 @@ RUN \
     && ln -sv /usr/share/postgresql/postgresql.conf.sample "${BINDIR%/*}/share/" \
     && sed -ri "s!^#?(listen_addresses)\s*=\s*\S+.*!\1 = '*'!" /usr/share/postgresql/postgresql.conf.sample \
     && grep -F "listen_addresses = '*'" /usr/share/postgresql/postgresql.conf.sample \
+## Create postgres space dirs
+    && install --verbose --directory --owner postgres --group postgres --mode 3777 /var/run/postgresql \
+## Also create the postgres user's home directory with appropriate permissions
+## See https://github.com/docker-library/postgres/issues/274
+    && install --verbose --directory --owner postgres --group postgres --mode 1777 "${PG_DIR}" \
+## This 1777 will be replaced by 0700 at runtime (allows semi-arbitrary "--user" values)
+    && install --verbose --directory --owner postgres --group postgres --mode 1777 "${PGDATA}" \
+    && install --verbose --directory --owner postgres --group postgres --mode 1777 "/etc/postgresql" \
 ## Remove packages
     && apt-env.sh apt-remove.sh wget \
 ## Remove cache
     && apt-clean.sh
 
-## Deduplicate
+## Set volume
+VOLUME "${PGDATA}"
+
+## Reduce perl-base: hardlink->symlink
 # hadolint ignore=DL3027, DL4006
 RUN \
-    apt update \
+    PERL_BASE=/usr/bin \
+    && find "${PERL_BASE}/" -wholename "${PERL_BASE}/perl5*" -exec ln -fsv perl {} ';' \
+    && ls -li "${PERL_BASE}/perl"* \
+## Deduplicate
+    && apt update \
     && apt-env.sh apt -y install --no-install-recommends --no-install-suggests \
         jdupes \
     && apt-clean.sh \
     && echo; du -xd1 /usr/ | sort -Vk2; echo \
     && jdupes -1LSpr /usr/ \
     && echo; du -xd1 /usr/ | sort -Vk2; echo \
-    && apt-env.sh apt-remove.sh jdupes
-
+    && apt-env.sh apt-remove.sh jdupes \
 ## Remove unwanted binaries
-RUN \
-    rm-binary.sh \
-            addgroup \
-            addpart \
-            adduser \
-            apt-ftparchive \
-            agetty \
-            badblocks \
-            blkdiscard \
-            blkid \
-            blkzone \
-            blockdev \
-            bsd-write \
-            chage \
-            chcpu \
-            chfn \
-            chgpasswd \
-            chmem \
-            chpasswd \
-            chsh \
-            cpgr \
-            cppw \
-            crontab \
-            ctrlaltdel \
-            debugfs \
-            delgroup \
-            delpart \
-            deluser \
-            dmesg \
-            dumpe2fs \
-            e2freefrag \
-            e2fsck \
-            e2image \
-            e2label \
-            e2mmpstatus \
-            e2scrub \
-            'e2scrub*' \
-            e2undo \
-            e4crypt \
-            e4defrag \
-            expiry \
-            faillock \
-            fdformat \
-            fincore \
-            findfs \
-            fsck \
-            'fsck.*' \
-            fsfreeze \
-            fstrim \
-            getty \
-            gpasswd \
-            groupadd \
-            groupdel \
-            groupmems \
-            groupmod \
-            grpck \
-            grpconv \
-            grpunconv \
-            hwclock \
-            isosize \
-            last \
-            lastb \
-            ldattach \
-            losetup \
-            lsblk \
-            lsirq \
-            lslogins \
-            mcookie \
-            mesg \
-            mke2fs \
-            mkfs \
-            'mkfs.*' \
-            mkhomedir_helper \
-            mklost+found \
-            mkswap \
-            mount \
-            newgrp \
-            newusers \
-            pam-auth-update \
-            pam_getenv \
-            pam_namespace_helper \
-            pam_timestamp_check \
-            partx \
-            passwd \
-            pivot_root \
-            pwck \
-            pwconv \
-            pwhistory_helper \
-            pwunconv \
-            raw \
-            readprofile \
-            resize2fs \
-            resizepart \
-            rtcwake \
-            sg \
-            shadowconfig \
-            su \
-            sulogin \
-            swaplabel \
-            swapoff \
-            swapon \
-            switch_root \
-            tune2fs \
-            umount \
-            unix_chkpwd \
-            unix_update \
-            update-passwd \
-            useradd \
-            userdel \
-            usermod \
-            utmpdump \
-            vigr \
-            vipw \
-            wall \
-            wdctl \
-            wipefs \
-            write \
-            'write.*' \
-            zramctl
-
+    && rm-binary.sh \
+        addgroup \
+        addpart \
+        adduser \
+        apt-ftparchive \
+        agetty \
+        badblocks \
+        blkdiscard \
+        blkid \
+        blkzone \
+        blockdev \
+        bsd-write \
+        chage \
+        chcpu \
+        chfn \
+        chgpasswd \
+        chmem \
+        chpasswd \
+        chsh \
+        cpgr \
+        cppw \
+        crontab \
+        ctrlaltdel \
+        debugfs \
+        delgroup \
+        delpart \
+        deluser \
+        dmesg \
+        dumpe2fs \
+        e2freefrag \
+        e2fsck \
+        e2image \
+        e2label \
+        e2mmpstatus \
+        e2scrub \
+        'e2scrub*' \
+        e2undo \
+        e4crypt \
+        e4defrag \
+        expiry \
+        faillock \
+        fdformat \
+        fincore \
+        findfs \
+        fsck \
+        'fsck.*' \
+        fsfreeze \
+        fstrim \
+        getty \
+        gpasswd \
+        groupadd \
+        groupdel \
+        groupmems \
+        groupmod \
+        grpck \
+        grpconv \
+        grpunconv \
+        hwclock \
+        isosize \
+        last \
+        lastb \
+        ldattach \
+        losetup \
+        lsblk \
+        lsirq \
+        lslogins \
+        mcookie \
+        mesg \
+        mke2fs \
+        mkfs \
+        'mkfs.*' \
+        mkhomedir_helper \
+        mklost+found \
+        mkswap \
+        mount \
+        newgrp \
+        newusers \
+        pam-auth-update \
+        pam_getenv \
+        pam_namespace_helper \
+        pam_timestamp_check \
+        partx \
+        passwd \
+        pivot_root \
+        pwck \
+        pwconv \
+        pwhistory_helper \
+        pwunconv \
+        raw \
+        readprofile \
+        resize2fs \
+        resizepart \
+        rtcwake \
+        sg \
+        shadowconfig \
+        su \
+        sulogin \
+        swaplabel \
+        swapoff \
+        swapon \
+        switch_root \
+        tune2fs \
+        umount \
+        unix_chkpwd \
+        unix_update \
+        update-passwd \
+        useradd \
+        userdel \
+        usermod \
+        utmpdump \
+        vigr \
+        vipw \
+        wall \
+        wdctl \
+        wipefs \
+        write \
+        'write.*' \
+        zramctl \
+    && rm -f \
+        /bin/lastb \
+        /bin/sg \
+        /sbin/getty \
+## Prevent services from auto-starting, part 1
+    && SERVICE_POLICY_SBIN='/usr/sbin/policy-rc.d' \
+    && SERVICE_POLICY_BIN='/usr/bin/policy-rc.d' \
+    && rm -f "${SERVICE_POLICY_SBIN}" "${SERVICE_POLICY_BIN}" \
+    && echo '#!/bin/sh' > "${SERVICE_POLICY_BIN}" \
+    && echo 'exit 101' >> "${SERVICE_POLICY_BIN}" \
+    && chmod 0755 "${SERVICE_POLICY_BIN}" \
+    && ln -s "${SERVICE_POLICY_BIN}" "${SERVICE_POLICY_SBIN}" \
+## Divert function with link true
+    && divert_true() { divert-rm.sh "${1}" ; ln -sv /bin/true "${1}" ; } \
+## Prevent services from auto-starting, part 2
+    && divert_true /sbin/start-stop-daemon \
+## Always report that we're in chroot
+    && divert_true /usr/bin/ischroot \
+## Hide systemd helpers
+    && divert_true /usr/bin/deb-systemd-helper \
+    && divert_true /usr/bin/deb-systemd-invoke \
 ## Prune unused files
-RUN \
-    find /usr/local/sbin/ ! -type d -ls -delete \
-    find /tmp/ ! -type d -ls -delete \
+    && find /usr/local/sbin/ ! -type d -ls -delete \
+    && find /tmp/ ! -type d -ls -delete \
     && find /run/ -mindepth 1 -ls -delete || : \
     && install -d -m 01777 /run/lock
-
-## Create postgres space dirs
-RUN \
-    install --verbose --directory --owner postgres --group postgres --mode 3777 /var/run/postgresql \
-## Also create the postgres user's home directory with appropriate permissions
-## See https://github.com/docker-library/postgres/issues/274
-    && install --verbose --directory --owner postgres --group postgres --mode 1777 "${PG_DIR}" \
-## This 1777 will be replaced by 0700 at runtime (allows semi-arbitrary "--user" values)
-    && install --verbose --directory --owner postgres --group postgres --mode 1777 "${PGDATA}" \
-    && install --verbose --directory --owner postgres --group postgres --mode 1777 "/etc/postgresql"
-
-## Set volume
-VOLUME "${PGDATA}"
 
 ## Copy entrypoint file
 COPY configuration/docker-entrypoint.sh /sbin/docker-entrypoint.sh

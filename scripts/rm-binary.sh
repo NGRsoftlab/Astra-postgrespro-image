@@ -3,7 +3,7 @@ set -f
 
 ## Cycle in package list each one element
 for package in "$@"; do
-  ## Check directory on binaty files exists
+  ## Check directory on binary files exists
   for directory in /usr/sbin /usr/bin /sbin /bin; do
     find "${directory}/" ! -type d -wholename "${directory}/${package}" |
       while read -r binary; do
@@ -15,7 +15,7 @@ for package in "$@"; do
       done
   done
 
-  ## Finally cycle again and remove unsed binary
+  ## Finally cycle again and remove unused binary
   for directory in /usr/sbin /usr/bin /sbin /bin; do
     find "${directory}/" ! -type d -wholename "${directory}/${package}" |
       while read -r binary; do

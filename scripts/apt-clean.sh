@@ -15,7 +15,7 @@ find "${DPKG_ADMINDIR}/" ! -type d -wholename "${DPKG_ADMINDIR}/*-old" -delete
 find /var/log/ ! -type d -wholename '/var/log/alternatives.log' -delete
 find /var/log/ ! -type d -wholename '/var/log/dpkg.log' -delete
 
-## DONT DO THIS AT HOME!
+## Not recommended run it at host
 find "${DPKG_ADMINDIR}/" ! -type d -wholename "${DPKG_ADMINDIR}/info/*.symbols" -delete
 
 ## debconf

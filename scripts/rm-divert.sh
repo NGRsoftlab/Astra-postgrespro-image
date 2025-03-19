@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -ef
 
-## Check reciving args
+## Check receiving args
 : "${1:?}"
 
 ## Associate program with path
@@ -14,4 +14,4 @@ mkdir -p "${divert_dir%/*}"
 dpkg-divert --divert "${divert_dir}" --rename "${1}" 2>/dev/null
 
 ## Remove program
-rm -f "$divert_dir"
+rm -f "${divert_dir}"

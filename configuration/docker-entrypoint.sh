@@ -323,7 +323,7 @@ docker_init_database_dir() {
 
 #############################################
 # Append POSTGRES_HOST_AUTH_METHOD to pg_hba.conf for "host" connections
-# all arguments will be passed along as arguments to `postgres` for 
+# all arguments will be passed along as arguments to `postgres` for
 # getting the value of 'password_encryption'
 # OUTPUT:
 #   Write to stdout
@@ -369,8 +369,8 @@ docker_temp_server_start() {
   NOTIFY_SOCKET= \
     PGUSER="${PGUSER:-$POSTGRES_USER}" \
     pg_ctl -D "${PGDATA}" \
-      -o "$(printf '%q ' "$@")" \
-      -w start
+    -o "$(printf '%q ' "$@")" \
+    -w start
 }
 
 #############################################
