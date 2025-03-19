@@ -2,7 +2,9 @@
 
 # PostgreSQL Pro
 
-[![PostgreSQL Pro](https://img.shields.io/badge/postgresql-pro-blue.svg)]***REMOVED***
+![PostgreSQL Pro](https://img.shields.io/badge/postgresql-pro-blue.svg)
+
+![Dive efficiency](https://img.shields.io/badge/dive--efficiency-95.1921%25-green.svg)
 
 ## Description
 
@@ -17,7 +19,7 @@
   - [Contents](#contents)
   - [What is it](#what-is-it)
   - [How to work with](#how-to-work-with)
-  - [CI variables](#ci-variables)
+    - [CI variables](#ci-variables)
   - [How to run this](#how-to-run-this)
     - [Initialization scripts](#initialization-scripts)
     - [Database Configuration](#database-configuration)
@@ -37,7 +39,7 @@ Dockerfile для сборки PostgreSQL Pro
 ## Export PostgreSQL version
 export POSTGRES_VERSION='15'
 
-## PostgreSQL image: 244MB
+## PostgreSQL image: 214MB
 docker build \
     --progress=plain \
     --no-cache \
@@ -51,7 +53,7 @@ docker build \
 ## Export PostgreSQL version
 export POSTGRES_VERSION='15-1c'
 
-## PostgreSQL image: 235MB
+## PostgreSQL image: 205MB
 docker build \
     --progress=plain \
     --no-cache \
@@ -62,11 +64,11 @@ docker build \
     .
 ```
 
-## [CI variables](#contents)
+### [CI variables](#contents)
 
 |     Имя     | Значение по умолчанию | Тип | Описание |
 |     :---    |         :----:        |  :----:  |   ---:   |
-| `image_registry` | ***REMOVED*** | string | Адрес до реестра образа. |
+| `image_registry` | '' | string | Адрес до реестра образа. Например: `--build-arg image_registry=my-container-registry:1111/` |
 | `image_name` | astra | string | Имя образа. |
 | `image_version` | 1.8.1 | string | Версия образа. |
 | `version` | 1.0.0 | float | Версия выпуска минимального контейнера. |
@@ -82,7 +84,15 @@ docker build \
 ## Export PostgreSQL version
 export POSTGRES_VERSION='15'
 
-## Launch container
+## Launch single container in interactive mode
+docker run --rm \
+  --name postgres-pro \
+  -e POSTGRES_PASSWORD=mypassword \
+  -e TZ="Europe/Moscow" \
+  -p 5432:5432 \
+  postgres-pro:"${POSTGRES_VERSION}"
+
+## Launch container in detach mode plus mapping volume
 docker run --rm -d \
   --name postgres-pro \
   -e POSTGRES_PASSWORD=mypassword \
@@ -125,7 +135,7 @@ docker run --rm -d \
 
 ### [Initialization scripts](#contents)
 
-Если вы хотите выполнить дополнительную инициализацию в образе, добавьте один или несколько скриптов в директорию `/docker-entrypoint-initdb.d` в формате: `*.sql`, `*.sql.gz` `*.sh`. После того, как `docker-entrypoint.sh` вызывает создание пользователя и базы данных, следом выполнит все исполняемые `*.sh` скрипты, все `*sql` файлы и получит все неисполняемые `*.sh` скрипты, найденные в этом каталоге, для выполнения дальнейшей инициализации перед запуском службы.
+Если вы хотите выполнить дополнительную инициализацию в образе, добавьте один или несколько скриптов в директорию `/docker-entrypoint-initdb.d` в формате: `*.sql`, `*.sql.gz` `*.sh`. После того, как `docker-entrypoint.sh` вызывает создание пользователя и базы данных, следом выполнит все исполняемые `*.sh` скрипты, все `*.sql` файлы и экспортирует в качестве источника все неисполняемые `*.sh` скрипты, найденные в этом каталоге, для выполнения дальнейшей инициализации перед запуском службы.
 
 **Предупреждение**:
 
@@ -141,7 +151,6 @@ export POSTGRES_VERSION='15'
 ## Launch container
 docker run --rm -d \
   --name postgres-pro \
-  -e POSTGRES_HOST_AUTH_METHOD=trust \
   -e DOCKER_DATABASE_USER=docker \
   -e DOCKER_DATABASE_PASSWORD=test \
   -e DOCKER_DATABASE_NAME=docker \
@@ -155,7 +164,7 @@ docker run --rm -d \
   postgres-pro:"${POSTGRES_VERSION}"
 
 ## Check scripts work
-psql -U postgres -h localhost -d abuba -qAXt -c 'SELECT key FROM license;'
+PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c 'SELECT key FROM license;'
 ```
 
 ### [Database Configuration](#contents)
@@ -304,6 +313,6 @@ postgres=# SELECT * FROM pg_available_extensions;
 
 ---
 
-[^1]: 🛠️ Не рекомендуется использовать, trustтак как это позволяет любому подключаться без пароля, даже если он установлен (например, через `POSTGRES_PASSWORD`). Для получения дополнительной информации см. документацию PostgreSQL по [Trust Authentication](https://www.postgresql.org/docs/14/auth-trust.html)
+[^1]: 🛠️ Не рекомендуется использовать, `trust` так как это позволяет любому подключаться без пароля, даже если он установлен (например, через `POSTGRES_PASSWORD`). Для получения дополнительной информации см. документацию PostgreSQL по [Trust Authentication](https://www.postgresql.org/docs/14/auth-trust.html)
 [^2]: 🛠️ Если установлено `POSTGRES_HOST_AUTH_METHOD` значение `trust`, то `POSTGRES_PASSWORD` не требуется
 [^3]: 🛠️ Если вы установите для этого параметра альтернативное значение (например, `scram-sha-256`), вам могут потребоваться дополнительные параметры `POSTGRES_INITDB_ARGS` для правильной инициализации базы данных (например, `POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256`).

@@ -8,3 +8,4 @@ certs
 *.conf
 test/
 pgpro-repo-add.sh
+efficiency.json

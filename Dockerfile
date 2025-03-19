@@ -1,26 +1,18 @@
 ## Definite image args
-ARG image_registry=***REMOVED***
+ARG image_registry
 ARG image_name=astra
 ARG image_version=1.8.1
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #                         Base image                          #
-#           First stage, install and build components         #
+#               First stage, prepare environment              #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-FROM ${image_registry}${image_name}:${image_version}
+FROM ${image_registry}${image_name}:${image_version} AS base-stage
 
 SHELL ["/bin/bash", "-exo", "pipefail", "-c"]
 
-## Set base label
-LABEL \
-    maintainer="Vladislav Avdeev" \
-    organization="NGRSoftlab"
-
 ## Def initial arg(will be replaced with docker build opt)
 ARG version=1.0.0
-ARG postgrespro_link=https://repo.postgrespro.ru/std/std-15/keys/pgpro-repo-add.sh
-ARG postgrespro_package_suffix='std-15'
-ARG postgrespro_version=15
 
 ## ENV for build args
 ENV \
@@ -30,40 +22,19 @@ ENV \
     TERM=linux \
     TZ=Etc/UTC \
 ## https://devcenter.heroku.com/articles/tuning-glibc-memory-behavior
-    MALLOC_ARENA_MAX=2 \
-## Set postgres variables
-    PG_USER=postgres \
-    PG_DIR="/var/lib/pgpro/${postgrespro_package_suffix}" \
-    PG_VERSION_SUFFIX="${postgrespro_package_suffix}" \
-    PG_MAJOR="${postgrespro_version}"
-
-## https://github.com/hadolint/hadolint/wiki/DL3044
-ENV \
-    PGDATA="${PG_DIR}/data" \
-    BINDIR="/opt/pgpro/${PG_VERSION_SUFFIX}/bin" \
-    PG_OOM_ADJUST_VALUE=0 \
-    PG_OOM_ADJUST_FILE=/proc/self/oom_score_adj \
-    PG_LOG="${PG_DIR}/pgstartup-data.log"
+    MALLOC_ARENA_MAX=2
 
 ## Copy build scripts
 COPY scripts/. /usr/local/sbin/
 
-## Install build components
+## Update locales
 ## Always use the latest version available for the current DEB distribution
 # hadolint ignore=DL3008, DL3027
 RUN \
     apt update \
-    && apt-env.sh apt -y install --no-install-recommends -qq \
+    && apt-env.sh apt -y install --no-install-recommends --no-install-suggests -qq \
+## Configure locales
         locales \
-        wget \
-        dumb-init \
-        libnss-wrapper \
-        xz-utils \
-        zstd \
-## https://www.postgresql.org/docs/16/app-psql.html#APP-PSQL-META-COMMAND-PSET-PAGER
-## https://github.com/postgres/postgres/blob/REL_16_1/src/include/fe_utils/print.h#L25
-## (if "less" is available, it gets used as the default pager for psql, and it only adds ~1.5MiB to our image size)
-        less \
 ## Update locales
     && locale-gen ru_RU ru_RU.UTF-8 en_US.UTF-8 \
     && dpkg-reconfigure locales \
@@ -77,41 +48,148 @@ RUN \
 ## Set locale language
 ENV LANG=ru_RU.UTF-8
 
+## Reduce perl-base: hardlink->symlink
+RUN \
+    PERL_BASE=/usr/bin \
+    && find "${PERL_BASE}/" -wholename "${PERL_BASE}/perl5*" -exec ln -fsv perl {} ';' \
+    && ls -li "${PERL_BASE}/perl"*
+
+## Prevent services from auto-starting, part 1
+RUN \
+    SERVICE_POLICY_SBIN='/usr/sbin/policy-rc.d' \
+    && SERVICE_POLICY_BIN='/usr/bin/policy-rc.d' \
+    && rm -f "${SERVICE_POLICY_SBIN}" "${SERVICE_POLICY_BIN}" \
+    && echo '#!/bin/sh' > "${SERVICE_POLICY_BIN}" \
+    && echo 'exit 101' >> "${SERVICE_POLICY_BIN}" \
+    && chmod 0755 "${SERVICE_POLICY_BIN}" \
+    && ln -s "${SERVICE_POLICY_BIN}" "${SERVICE_POLICY_SBIN}"
+
+## Divert function with link true
+RUN \
+    divert_true() { rm-divert.sh "${1}" ; ln -sv /bin/true "${1}" ; } \
+## Prevent services from auto-starting, part 2
+    && divert_true /sbin/start-stop-daemon \
+## Always report that we're in chroot
+    && divert_true /usr/bin/ischroot \
+## Hide systemd helpers
+    && divert_true /usr/bin/deb-systemd-helper \
+    && divert_true /usr/bin/deb-systemd-invoke
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#                         Second image                        #
+#              Second stage, build static component           #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+FROM base-stage AS build-stage
+
+SHELL ["/bin/bash", "-exo", "pipefail", "-c"]
+
+## Def initial arg(will be replaced with docker build opt)
+ARG postgrespro_link=https://repo.postgrespro.ru/std/std-15/keys/pgpro-repo-add.sh
+
 ## Temporary directory for installer
-WORKDIR /tmp
+WORKDIR /opt
 
 ## Copy '.c' file
-COPY ./configuration/su-exec.c su-exec.c
+COPY configuration/su-exec.c su-exec.c
 
-## Install build components for compile su-exec
+## Compile su-exec
 # hadolint ignore=DL3008, DL3027
 RUN \
     apt update \
-    && apt-env.sh apt -y install --no-install-recommends -qq \
+    && apt-env.sh apt -y install --no-install-recommends --no-install-suggests -qq \
+## Compile .c
         gcc \
         libc-dev \
-## Compile su-exec
     && gcc -Os -no-pie -static -std=gnu99 -s -Wall -Werror \
         -o /usr/local/bin/su-exec su-exec.c \
-    && chmod 0700 /usr/local/bin/su-exec \
+    && rm su-exec.c \
 ## Remove packages
     && apt-env.sh apt-remove.sh gcc libc-dev \
-## Remove cache
     && apt-clean.sh
 
+## Download postgres component
+# hadolint ignore=DL3008, DL3027
+RUN \
+    apt update \
+    && apt-env.sh apt -y install --no-install-recommends --no-install-suggests -qq \
+## Download from source
+        wget \
+    && wget --progress=dot:giga \
+        "${postgrespro_link}" \
+## Remove packages
+    && apt-env.sh apt-remove.sh wget \
+    && apt-clean.sh \
+    && find /usr/local/sbin/ ! -type d -ls -delete
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#                        Final image                          #
+#             Third stage, install final components           #
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+FROM base-stage AS final-stage
+
+SHELL ["/bin/bash", "-exo", "pipefail", "-c"]
+
+## Set base label
+LABEL \
+    maintainer="Vladislav Avdeev" \
+    organization="NGRSoftlab"
+
+## Def initial arg(will be replaced with docker build opt)
+ARG postgrespro_package_suffix='std-15'
+ARG postgrespro_version=15
+
+## Set postgres variables
+ENV \
+    PG_USER=postgres \
+    PG_DIR="/var/lib/pgpro/${postgrespro_package_suffix}" \
+    PG_VERSION_SUFFIX="${postgrespro_package_suffix}" \
+    PG_MAJOR="${postgrespro_version}"
+
+## https://github.com/hadolint/hadolint/wiki/DL3044
+ENV \
+    PGDATA="${PG_DIR}/data" \
+    BINDIR="/opt/pgpro/${PG_VERSION_SUFFIX}/bin" \
+    PG_OOM_ADJUST_VALUE=0 \
+    PG_OOM_ADJUST_FILE=/proc/self/oom_score_adj \
+    PG_LOG="${PG_DIR}/pgstartup-data.log"
+
+## Temporary directory for installer
+WORKDIR /tmp
+
+## Copy entrypoint file
+COPY --chmod=0755 configuration/docker-entrypoint.sh /usr/local/bin/
+
+## Copy from build stage
+COPY --from=build-stage --chmod=0700 /usr/local/bin/su-exec /usr/local/bin/
+COPY --from=build-stage /opt/pgpro-repo-add.sh /tmp/
+
 ## Install postgres
+# hadolint ignore=DL3008, DL3027
 RUN \
     groupadd -r postgres --gid=999 \
 ## https://salsa.debian.org/postgresql/postgresql-common/blob/997d842ee744687d99a2b2d95c1083a2615c79e8/debian/postgresql-common.postinst#L32-35
     && useradd -r -g postgres --uid=999 --home-dir="${PG_DIR}" --shell=/bin/bash postgres \
-    && wget --progress=dot:giga \
-        "${postgrespro_link}" \
+    && apt update \
+    && apt-env.sh apt -y install --no-install-recommends --no-install-suggests -qq \
+## Init agent
+        dumb-init \
+## Postgres ep import
+        libnss-wrapper \
+        xz-utils \
+        zstd \
+## https://www.postgresql.org/docs/16/app-psql.html#APP-PSQL-META-COMMAND-PSET-PAGER
+## https://github.com/postgres/postgres/blob/REL_16_1/src/include/fe_utils/print.h#L25
+## (if "less" is available, it gets used as the default pager for psql, and it only adds ~1.5MiB to our image size)
+        less \
     && apt-env.sh sh pgpro-repo-add.sh \
-    && apt-env.sh apt -y install --no-install-recommends -qq \
+    && rm pgpro-repo-add.sh \
+    && apt-env.sh apt -y install --no-install-recommends --no-install-suggests -qq \
         postgrespro-"${PG_VERSION_SUFFIX}" \
     && mkdir /docker-entrypoint-initdb.d \
     && mkdir -p /usr/share/postgresql \
-    && dpkg-divert --add --rename --divert "/usr/share/postgresql/postgresql.conf.sample.dpkg" "${BINDIR%/*}/share/postgresql.conf.sample" \
+    && dpkg-divert --add --rename --divert \
+        "/usr/share/postgresql/postgresql.conf.sample.dpkg" \
+        "${BINDIR%/*}/share/postgresql.conf.sample" \
     && cp -v /usr/share/postgresql/postgresql.conf.sample.dpkg /usr/share/postgresql/postgresql.conf.sample \
     && ln -sv /usr/share/postgresql/postgresql.conf.sample "${BINDIR%/*}/share/" \
     && sed -ri "s!^#?(listen_addresses)\s*=\s*\S+.*!\1 = '*'!" /usr/share/postgresql/postgresql.conf.sample \
@@ -124,31 +202,17 @@ RUN \
 ## This 1777 will be replaced by 0700 at runtime (allows semi-arbitrary "--user" values)
     && install --verbose --directory --owner postgres --group postgres --mode 1777 "${PGDATA}" \
     && install --verbose --directory --owner postgres --group postgres --mode 1777 "/etc/postgresql" \
-## Remove packages
-    && apt-env.sh apt-remove.sh wget \
 ## Remove cache
-    && apt-clean.sh
+    && apt-clean.sh \
+## Test su-exec
+    && su-exec nobody true
 
 ## Set volume
 VOLUME "${PGDATA}"
 
-## Reduce perl-base: hardlink->symlink
-# hadolint ignore=DL3027, DL4006
-RUN \
-    PERL_BASE=/usr/bin \
-    && find "${PERL_BASE}/" -wholename "${PERL_BASE}/perl5*" -exec ln -fsv perl {} ';' \
-    && ls -li "${PERL_BASE}/perl"* \
-## Deduplicate
-    && apt update \
-    && apt-env.sh apt -y install --no-install-recommends --no-install-suggests \
-        jdupes \
-    && apt-clean.sh \
-    && echo; du -xd1 /usr/ | sort -Vk2; echo \
-    && jdupes -1LSpr /usr/ \
-    && echo; du -xd1 /usr/ | sort -Vk2; echo \
-    && apt-env.sh apt-remove.sh jdupes \
 ## Remove unwanted binaries
-    && rm-binary.sh \
+RUN \
+    rm-binary.sh \
         addgroup \
         addpart \
         adduser \
@@ -269,32 +333,28 @@ RUN \
     && rm -f \
         /bin/lastb \
         /bin/sg \
-        /sbin/getty \
-## Prevent services from auto-starting, part 1
-    && SERVICE_POLICY_SBIN='/usr/sbin/policy-rc.d' \
-    && SERVICE_POLICY_BIN='/usr/bin/policy-rc.d' \
-    && rm -f "${SERVICE_POLICY_SBIN}" "${SERVICE_POLICY_BIN}" \
-    && echo '#!/bin/sh' > "${SERVICE_POLICY_BIN}" \
-    && echo 'exit 101' >> "${SERVICE_POLICY_BIN}" \
-    && chmod 0755 "${SERVICE_POLICY_BIN}" \
-    && ln -s "${SERVICE_POLICY_BIN}" "${SERVICE_POLICY_SBIN}" \
-## Divert function with link true
-    && divert_true() { divert-rm.sh "${1}" ; ln -sv /bin/true "${1}" ; } \
-## Prevent services from auto-starting, part 2
-    && divert_true /sbin/start-stop-daemon \
-## Always report that we're in chroot
-    && divert_true /usr/bin/ischroot \
-## Hide systemd helpers
-    && divert_true /usr/bin/deb-systemd-helper \
-    && divert_true /usr/bin/deb-systemd-invoke \
+        /sbin/getty
+
+## Cleanup deduplicate
+# hadolint ignore=DL3027, DL4006
+RUN \
+    apt update \
+    && apt-env.sh apt -y install --no-install-recommends --no-install-suggests -qq \
+        jdupes \
+## Prune deduplicate
+    && echo; du -xd1 /usr/ | sort -Vk2; echo \
+    && jdupes -1LSpr /usr/ \
+    && echo; du -xd1 /usr/ | sort -Vk2; echo \
+## Remove packages
+    && apt-env.sh apt-remove.sh jdupes \
+    && apt-clean.sh
+
 ## Prune unused files
-    && find /usr/local/sbin/ ! -type d -ls -delete \
+RUN \
+    find /usr/local/sbin/ ! -type d -ls -delete \
     && find /tmp/ ! -type d -ls -delete \
     && find /run/ -mindepth 1 -ls -delete || : \
     && install -d -m 01777 /run/lock
-
-## Copy entrypoint file
-COPY configuration/docker-entrypoint.sh /sbin/docker-entrypoint.sh
 
 ## Be gentle and expose port
 EXPOSE 5432/tcp

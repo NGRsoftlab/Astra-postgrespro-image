@@ -4,6 +4,6 @@ create table public.license (
   constraint  license_pk primary key (id)
 );
 
-alter table public.license owner to postgres;
+alter table public.license owner to abuba;
 
 INSERT INTO license (key) VALUES ('License by NGRSoftlab with love');

@@ -7,6 +7,7 @@ find /var/lib/apt/ ! -type d -wholename '/var/lib/apt/listchanges*' -delete
 find /var/lib/apt/lists/ ! -type d ! -name 'lock' -delete
 find /var/log/ ! -type d -wholename '/var/log/apt/*' -delete
 find /var/log/ ! -type d -wholename '/var/log/aptitude*' -delete
+find /var/tmp/ ! -type d -ls -delete
 
 ## dpkg
 : "${DPKG_ADMINDIR:=/var/lib/dpkg}"
