@@ -311,8 +311,9 @@ docker_init_database_dir() {
     set -- --waldir "${POSTGRES_INITDB_WALDIR}" "$@"
   fi
 
+  export DB_LOCALE="${LOCALE:-en_US.utf8}"
   ## --pwfile refuses to handle a properly-empty file (hence the "\n"): https://github.com/docker-library/postgres/issues/1025
-  eval 'initdb --username="${POSTGRES_USER}" --encoding=unicode --locale=${LOCALE} --pwfile=<(printf "%s\n" "${POSTGRES_PASSWORD}") '"${POSTGRES_INITDB_ARGS}"' "$@"'
+  eval 'initdb --username="${POSTGRES_USER}" --encoding=unicode --locale=${DB_LOCALE} --pwfile=<(printf "%s\n" "${POSTGRES_PASSWORD}") '"${POSTGRES_INITDB_ARGS}"' "$@"'
 
   # unset/cleanup "nss_wrapper" bits
   if [[ "${LD_PRELOAD:-}" == */libnss_wrapper.so ]]; then
@@ -329,8 +330,7 @@ docker_init_database_dir() {
 #   Write to stdout
 #############################################
 pg_setup_hba_conf() {
-  # default authentication method is md5 on versions before 14
-  # https://www.postgresql.org/about/news/postgresql-14-released-2318/
+  # default authentication method is scram-sha-256
   if [[ "$1" = 'postgres' ]]; then
     shift
   fi

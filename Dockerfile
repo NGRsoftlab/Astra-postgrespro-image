@@ -36,17 +36,21 @@ RUN \
 ## Configure locales
         locales \
 ## Update locales
-    && locale-gen ru_RU ru_RU.UTF-8 en_US.UTF-8 \
+    && printf 'ru_RU.UTF-8 UTF-8\nen_US.UTF-8 UTF-8' >> /etc/locale.gen \
+    && locale-gen \
     && dpkg-reconfigure locales \
     # LANG=ru_RU.UTF-8
     && update-locale \
+## Check locale
+    && locale -a | grep 'en_US.utf8' \
+    && locale -a | grep 'ru_RU.utf8' \
 ## Remove cache
     && apt-clean.sh \
 ## Def version container
     && echo "Minimal Container version ${VERSION}" > /etc/issue
 
 ## Set locale language
-ENV LANG=ru_RU.UTF-8
+ENV LANG=en_US.utf8
 
 ## Reduce perl-base: hardlink->symlink
 RUN \
@@ -152,6 +156,7 @@ ENV \
     PG_OOM_ADJUST_VALUE=0 \
     PG_OOM_ADJUST_FILE=/proc/self/oom_score_adj \
     PG_LOG="${PG_DIR}/pgstartup-data.log"
+ENV PATH="${BINDIR}:${PATH}"
 
 ## Temporary directory for installer
 WORKDIR /tmp
@@ -184,7 +189,11 @@ RUN \
     && apt-env.sh sh pgpro-repo-add.sh \
     && rm pgpro-repo-add.sh \
     && apt-env.sh apt -y install --no-install-recommends --no-install-suggests -qq \
-        postgrespro-"${PG_VERSION_SUFFIX}" \
+        postgrespro-"${PG_VERSION_SUFFIX}"-server \
+        ## additional facilities for Postgres Pro
+        postgrespro-"${PG_VERSION_SUFFIX}"-contrib \
+## Test postgres
+    && postgres --version \
     && mkdir /docker-entrypoint-initdb.d \
     && mkdir -p /usr/share/postgresql \
     && dpkg-divert --add --rename --divert \
@@ -207,7 +216,7 @@ RUN \
 ## Test su-exec
     && su-exec nobody true
 
-## Set volume
+## Set volume creates a mount point with the specified name and marks it as holding externally mounted volumes from native host or other containers
 VOLUME "${PGDATA}"
 
 ## Remove unwanted binaries

@@ -9,3 +9,4 @@ certs
 test/
 pgpro-repo-add.sh
 efficiency.json
+migration-tools/
