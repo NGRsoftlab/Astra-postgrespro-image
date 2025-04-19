@@ -1,5 +1,4 @@
 .idea
-tmp
 test.sh
 *.key
 *.crt
@@ -10,3 +9,8 @@ test/
 pgpro-repo-add.sh
 efficiency.json
 migration-tools/
+tmp/*.iso
+tmp/postgres-cert/
+opt/dists/
+opt/pool/
+opt/keys/

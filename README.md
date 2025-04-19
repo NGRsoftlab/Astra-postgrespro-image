@@ -28,6 +28,8 @@
   - [What is it](#what-is-it)
   - [How to work with](#how-to-work-with)
     - [CI variables](#ci-variables)
+  - [Features of the certified version assembly](#features-of-the-certified-version-assembly)
+    - [CI variables certified](#ci-variables-certified)
   - [How to run this](#how-to-run-this)
     - [Initialization scripts](#initialization-scripts)
     - [Database Configuration](#database-configuration)
@@ -86,6 +88,45 @@ docker build \
 | `postgrespro_link` | `https://repo.postgrespro.ru/std/std-15/keys/pgpro-repo-add.sh` | string | Ссылка до скрипта из [инструкции по установке](https://postgrespro.ru/products/download/postgrespro/15.12.1). |
 | `postgrespro_package_suffix` | std-15 | string | Версия выпуска пакета PostgreSQL Pro. |
 | `postgrespro_version` | 15 | integer | Мажорная версия выпуска PostgreSQL Pro. |
+
+## [Features of the certified version assembly](#contents)
+
+> [!warning] Предупреждение
+> Данные выше способы сопоставимы только не для сертифицированной версии!
+
+Для сертифицированной, необходимо скачать базовый ISO образ(на момент написания поставка осуществлялась именно так) выданной в ЛК postgres-a. Скачать его можно в `tmp` директорию. Далее перейти в данную директорию распаковать его при помощи команды `7z x -opostgres-cert *.iso` (если `7z` отсутствует, то его необходимо установить в ОС при помощи пакета `p7zip-full`(для deb) или иной, в зависимости от вашей системы). Финальный шаг - это подготовка к установке `postgres-pro-certified` в контейнерной среде
+
+```console
+## Перемещаем файловый репозиторий в специально подготовленную директорию, на примере: Astra Smolensk 1.8_x86-64
+$ cp -R tmp/postgres-cert/astra-smolensk/1.8/* opt/
+## Обязательно проверьте, чтобы GPG ключ имел определенную запись: 'opt/keys/GPG-KEY-POSTGRESPRO'
+$ cp -R tmp/postgres-cert/keys opt/
+## Затем можно запускать сборку при помощи докера
+```
+
+```shell
+## Export PostgreSQL version
+export POSTGRES_VERSION='15-certified'
+
+## PostgreSQL image: 217MB
+docker build \
+    --progress=plain \
+    --no-cache \
+    -f Dockerfile.certified \
+    -t postgres-pro:"${POSTGRES_VERSION}" \
+    .
+```
+
+### [CI variables certified](#contents)
+
+|     Имя     | Значение по умолчанию | Тип | Описание |
+|     :---    |         :----:        |  :----:  |   ---:   |
+| `image_registry` | '' | string | Адрес до реестра образа. <br>Например: `--build-arg image_registry=my-container-registry:1111/` |
+| `image_name` | astra | string | Имя образа. |
+| `image_version` | 1.8.1 | string | Версия образа. |
+| `version` | 1.0.0 | float | Версия выпуска минимального контейнера. |
+| `postgrespro_package_suffix` | std-15 | string | Версия выпуска пакета PostgreSQL Pro Certified. |
+| `postgrespro_version` | 15 | integer | Мажорная версия выпуска PostgreSQL Pro Certified. |
 
 ## [How to run this](#contents)
 
