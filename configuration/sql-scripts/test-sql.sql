@@ -1,9 +1,11 @@
-create table public.license (
-  id          serial4 not null,
-  "key"       text null,
-  constraint  license_pk primary key (id)
+CREATE TABLE public.license (
+    id SERIAL PRIMARY KEY,
+    key TEXT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
-alter table public.license owner to abuba;
+-- Выдача прав владельцу 'abuba'
+ALTER TABLE public.license OWNER TO abuba;
 
+-- Вставка текста в key
 INSERT INTO license (key) VALUES ('License by NGRSoftlab with love');

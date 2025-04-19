@@ -207,7 +207,7 @@ docker run --rm -d \
 - Любая существующая база данных останется нетронутой при запуске контейнера. Одна из распространенных проблем заключается в том, что если один из ваших `/docker-entrypoint-initdb.d` скриптов завершается неудачно (что приводит к завершению работы скрипта точки входа) и ваш оркестратор перезапускает контейнер с уже инициализированным каталогом данных, он не продолжит работу с вашими скриптами.
 >>>
 
-- Пример запуска контейнера со скриптами инициализации
+- Пример запуска контейнера со скриптами инициализации. Тесты создадут как пространство в базе данных, так и проведут стресс тест, где создадут таблицу и произведут вставку 1'000'000 записей
 
 ```shell
 ## Export PostgreSQL version
@@ -228,8 +228,23 @@ docker run --rm -d \
   -p 5432:5432 \
   postgres-pro:"${POSTGRES_VERSION}"
 
+## Checking database availability
+COUNTER=0
+until pg_isready -h localhost -p 5432 -U "${DOCKER_DATABASE_USER}" >/dev/null 2>&1; do
+  echo "Waiting for the database to be ready, attempt number: $((COUNTER+1))"
+  sleep 3
+  ((COUNTER++)) || true
+done
+echo "Ready to accept connection"
+
 ## Check scripts work
 PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c 'SELECT key FROM license;'
+PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c "SELECT COUNT(*) FROM test_data;"
+PGPASSWORD='test' psql -U docker -h localhost -d docker -c "SELECT 'Tables exists' AS check, COUNT(*) AS tables FROM information_schema.tables;"
+PGPASSWORD='test' psql -U docker -h localhost -d docker -c "select now();"
+
+## Large query be careful
+PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -c 'SELECT * FROM test_data;'
 ```
 
 ### [Database Configuration](#contents)
