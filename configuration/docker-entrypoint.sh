@@ -2,7 +2,7 @@
 
 set -Eeo pipefail
 
-[[ "${DEBUG}" != 'ON' ]] || set -x
+[[ ${DEBUG} != 'ON' ]] || set -x
 
 #############################################
 # Style format
@@ -135,9 +135,9 @@ logger_fail() {
 #############################################
 _is_sourced() {
   # https://unix.stackexchange.com/a/215279
-  [[ "${#FUNCNAME[@]}" -ge 2 ]] &&
-    [[ "${FUNCNAME[0]}" = '_is_sourced' ]] &&
-    [[ "${FUNCNAME[1]}" = 'source' ]]
+  [[ ${#FUNCNAME[@]} -ge 2 ]] \
+    && [[ ${FUNCNAME[0]} == '_is_sourced' ]] \
+    && [[ ${FUNCNAME[1]} == 'source' ]]
 }
 
 #############################################
@@ -228,7 +228,7 @@ docker_create_db_directories() {
   chmod 03775 /var/run/postgresql || :
 
   ## Create the transaction log directory before initdb is run so the directory is owned by the correct user
-  if [[ -n "${POSTGRES_INITDB_WALDIR:-}" ]]; then
+  if [[ -n ${POSTGRES_INITDB_WALDIR:-} ]]; then
     mkdir -p "${POSTGRES_INITDB_WALDIR}"
     [[ ${user} -ne 0 ]] || find "${POSTGRES_INITDB_WALDIR}" \! -user postgres -exec chown postgres '{}' +
     chmod 700 "${POSTGRES_INITDB_WALDIR}"
@@ -253,7 +253,7 @@ docker_verify_minimum_env() {
       # https://github.com/postgres/postgres/commit/67a472d71c98c3d2fa322a1b4013080b20720b98
       # check password first so we can output the warning before postgres
       # messes it up
-      if [[ "${#POSTGRES_PASSWORD}" -ge 100 ]]; then
+      if [[ ${#POSTGRES_PASSWORD} -ge 100 ]]; then
         logger_warning_message 'The supplied POSTGRES_PASSWORD is 100+ characters'
         logger_warning_message 'This will not work if used via PGPASSWORD with "psql"'
         logger_warning_message 'https://www.postgresql.org/message-id/flat/E1Rqxp2-0004Qt-PL%40wrigleys.postgresql.org (BUG #6412)'
@@ -261,7 +261,7 @@ docker_verify_minimum_env() {
       fi
       ;;
   esac
-  if [[ -z "${POSTGRES_PASSWORD}" ]] && [[ 'trust' != "${POSTGRES_HOST_AUTH_METHOD}" ]]; then
+  if [[ -z ${POSTGRES_PASSWORD} ]] && [[ 'trust' != "${POSTGRES_HOST_AUTH_METHOD}" ]]; then
     POSTGRES_PASSWORD="NGRSoftlab"
     logger_warning_message "DEFAULT PASSWORD WAS USED!"
     logger_warning_message "MOST IMPORTANT TO CHANGE TO YOUR PRIVATE PASSWORD!"
@@ -294,7 +294,7 @@ docker_init_database_dir() {
     ## see if we can find a suitable "libnss_wrapper.so" (https://salsa.debian.org/sssd-team/nss-wrapper/-/commit/b9925a653a54e24d09d9b498a2d913729f7abb15)
     local wrapper
     for wrapper in {/usr,}/lib{/*,}/libnss_wrapper.so; do
-      if [[ -s "${wrapper}" ]]; then
+      if [[ -s ${wrapper} ]]; then
         NSS_WRAPPER_PASSWD="$(mktemp)"
         NSS_WRAPPER_GROUP="$(mktemp)"
         export LD_PRELOAD="${wrapper}" NSS_WRAPPER_PASSWD NSS_WRAPPER_GROUP
@@ -311,12 +311,12 @@ docker_init_database_dir() {
     set -- --waldir "${POSTGRES_INITDB_WALDIR}" "$@"
   fi
 
-  export DB_LOCALE="${LOCALE:-en_US.utf8}"
+  export DB_LOCALE="${LOCALE:-en_US.UTF8}"
   ## --pwfile refuses to handle a properly-empty file (hence the "\n"): https://github.com/docker-library/postgres/issues/1025
   eval 'initdb --username="${POSTGRES_USER}" --encoding=unicode --locale=${DB_LOCALE} --pwfile=<(printf "%s\n" "${POSTGRES_PASSWORD}") '"${POSTGRES_INITDB_ARGS}"' "$@"'
 
   # unset/cleanup "nss_wrapper" bits
-  if [[ "${LD_PRELOAD:-}" == */libnss_wrapper.so ]]; then
+  if [[ ${LD_PRELOAD:-} == */libnss_wrapper.so ]]; then
     rm -f "${NSS_WRAPPER_PASSWD}" "${NSS_WRAPPER_GROUP}"
     unset LD_PRELOAD NSS_WRAPPER_PASSWD NSS_WRAPPER_GROUP
   fi
@@ -331,7 +331,7 @@ docker_init_database_dir() {
 #############################################
 pg_setup_hba_conf() {
   # default authentication method is scram-sha-256
-  if [[ "$1" = 'postgres' ]]; then
+  if [[ $1 == 'postgres' ]]; then
     shift
   fi
   local auth
@@ -340,7 +340,7 @@ pg_setup_hba_conf() {
   : "${POSTGRES_HOST_AUTH_METHOD:=$auth}"
   {
     printf '\n'
-    if [[ 'trust' = "${POSTGRES_HOST_AUTH_METHOD}" ]]; then
+    if [[ 'trust' == "${POSTGRES_HOST_AUTH_METHOD}" ]]; then
       printf '# warning trust is enabled for all connections\n'
       printf '# see https://www.postgresql.org/docs/17/auth-trust.html\n'
     fi
@@ -387,7 +387,7 @@ docker_setup_db() {
       SELECT 1 FROM pg_database WHERE datname = :'db' ;
 EOSQL
   )"
-  if [[ -z "${DB_ALREADY_EXISTS}" ]]; then
+  if [[ -z ${DB_ALREADY_EXISTS} ]]; then
     # shellcheck disable=SC2097,SC1007,SC2098
     POSTGRES_DB= docker_process_sql --dbname postgres --set db="${POSTGRES_DB}" <<-'EOSQL'
       CREATE DATABASE :"db" ;
@@ -436,7 +436,7 @@ docker_process_init_files() {
       *.sh)
         # https://github.com/docker-library/postgres/issues/450#issuecomment-393167936
         # https://github.com/docker-library/postgres/pull/452
-        if [[ -x "${f}" ]]; then
+        if [[ -x ${f} ]]; then
           logger_info_message "${0}: running ${f}"
           "${f}"
         else
@@ -490,11 +490,23 @@ docker_temp_server_stop() {
 #############################################
 main() {
   ## If first arg looks like a flag, assume we want to run postgres server
-  if [[ "${1:0:1}" == '-' ]]; then
+  if [[ ${1:0:1} == '-' ]]; then
     set -- postgres "$@"
   fi
 
-  if [[ "$1" = 'postgres' ]] && ! _pg_want_help "$@"; then
+  # Check can be loaded '/etc/environment' as default?
+  # shellcheck disable=SC2163
+  if [[ -f /etc/environment ]]; then
+    while IFS= read -r line; do
+      [ -z "${line}" ] && continue
+      case "${line}" in
+        \#*) continue ;;
+        *) export "${line}" ;;
+      esac
+    done </etc/environment
+  fi
+
+  if [[ $1 == 'postgres' ]] && ! _pg_want_help "$@"; then
     docker_setup_env
     ## Setup data directories and permissions (when run as root)
     docker_create_db_directories
@@ -504,6 +516,11 @@ main() {
 
       # Then restart script as postgres user
       exec su-exec postgres "${BASH_SOURCE[@]}" "$@"
+    fi
+
+    # Check, can preview '/etc/issue'?
+    if [[ -s /etc/issue ]] && [[ ! -t 0 ]]; then
+      cat /etc/issue
     fi
 
     # only run initialization on an empty data directory

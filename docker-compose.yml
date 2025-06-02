@@ -5,7 +5,7 @@
 # label com.docker.compose.project
 name: postgres
 
-# loging
+# logging
 x-logging-default: &x-logging-default
   logging:
     driver: json-file
@@ -40,7 +40,7 @@ volumes:
 services:
   postgres:
     <<: *x-logging-default
-    image: &postgresImage postgres-pro:${POSTGRESQL_VERSION:-15}
+    image: &postgresImage postgres-pro:${POSTGRESQL_VERSION:-15-astra1.8.2-slim}
     build:
       context: .
       dockerfile: Dockerfile

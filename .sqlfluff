@@ -1,0 +1,97 @@
+# https://docs.sqlfluff.com/en/1.4.5/configuration.html
+# https://docs.sqlfluff.com/en/stable/reference/rules.html
+[sqlfluff]
+dialect = postgres
+sql_file_exts = .sql,.ddl
+# Разрешить SELECT *
+exclude_rules = L031, AM04
+warn_unused_rules = True
+large_file_skip_byte_limit = 1200000
+
+# CPU processes to use while linting.
+# The default is "single threaded" to allow easy debugging, but this
+# is often undesirable at scale.
+# If positive, just implies number of processes.
+# If negative or zero, implies number_of_cpus - specified_number.
+# e.g. -1 means use all processors but one. 0 means all cpus.
+processes = 9
+
+# The standard max_line_length is 80 in line with the convention of
+# other tools and several style guides. Many projects however prefer
+# something a little longer.
+# Set to zero or negative to disable checks.
+# This for sql
+max_line_length = 0
+output_line_length = 150
+
+# Ядро правил
+[sqlfluff:core]
+# Игнорировать ошибки парсинга (для сложных запросов)
+ignore = parsing
+encoding = utf-8
+
+# Стиль и форматирование
+[sqlfluff:layout:type:comma]
+# Запятая после элемента
+line_position = trailing
+
+# Правила длины строки
+# Установите максимальную длину строки
+[sqlfluff:rules:layout.long_lines]
+max_length = 150
+
+[indentation]
+# Отступы пробелами
+indent_unit = space
+# 4 пробела на уровень
+tab_space_size = 4
+indented_joins = True
+
+[sqlfluff:rules]
+# отключить С04
+capitalisation.policy_for_null = ignore
+# Ключевые слова в uppercase
+capitalisation_policy = upper
+# Идентификаторы в uppercase
+extended_capitalisation_policy = upper
+# Разрешить скалярные подзапросы
+allow_scalar = True
+# Единый стиль ссылок на таблицы
+single_table_references = consistent
+# Правила именования
+# Фукнции запросов: SELECT, FROM в uppercase
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper
+
+# Требовать AS для алиасов
+[sqlfluff:rules:aliasing.table]
+aliasing = explicit
+
+# Алиасы для столбцов
+[sqlfluff:rules:aliasing.column]
+aliasing = explicit
+
+# Идентификаторы в lowercase
+# Имена таблиц/колонок
+[sqlfluff:rules:capitalisation.identifiers]
+extended_capitalisation_policy = lower
+
+# NULL-проверки
+# Запретить "= NULL"
+[sqlfluff:rules:capitalisation.literals]
+preferred_null_style = IS NULL
+
+# JOIN
+# Запретить подзапросы в JOIN
+[sqlfluff:rules:structure.subquery]
+forbid_subquery_in = join
+
+# Кавычки
+# "column_name" вместо `column_name`
+[sqlfluff:rules:layout.spacing]
+preferred_quoted_style = double
+
+# Функции
+# Функции в lowercase
+[sqlfluff:rules:capitalisation.functions]
+capitalisation_policy = lower

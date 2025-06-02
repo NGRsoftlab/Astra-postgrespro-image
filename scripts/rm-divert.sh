@@ -1,17 +1,18 @@
 #!/usr/bin/env sh
+
 set -ef
 
-## Check receiving args
+## Check receiving arg on exists
 : "${1:?}"
 
 ## Associate program with path
-divert_dir=$(printf '%s' "/run/program/divert/${1}" | tr -s '/')
+DIVERT_DIR=$(printf '%s' "/run/program/divert/${1}" | tr -s '/')
 
 ## Create directory
-mkdir -p "${divert_dir%/*}"
+mkdir -p "${DIVERT_DIR%/*}"
 
 ## Remove divert
-dpkg-divert --divert "${divert_dir}" --rename "${1}" 2>/dev/null
+dpkg-divert --divert "${DIVERT_DIR}" --rename "${1}" 2>/dev/null
 
 ## Remove program
-rm -f "${divert_dir}"
+rm -f "${DIVERT_DIR}"

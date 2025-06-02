@@ -11,6 +11,8 @@ efficiency.json
 migration-tools/
 tmp/*.iso
 tmp/postgres-cert/
+tmp/postgres-cert/Documentation
 opt/dists/
 opt/pool/
 opt/keys/
+configuration/auth*.conf
