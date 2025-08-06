@@ -28,7 +28,23 @@
 
 Сборка основана на [официальном сборщике Docker-library](https://github.com/docker-library/postgres/tree/master), сопровождении [настройки PostgreSQL Pro для 1С](https://github.com/JacobBermudes/PostgresPro-1c/tree/main), сопровождении [init файла](https://git.org.ru/Djam/postgrespro-1c/src/branch/import/postgrespro.init.in) и [официальной документации PostgreSQL Pro](https://postgrespro.ru/products/download/postgrespro/15.12.1)
 
-::include{file=docs/integration.md}
+Присоединяйтесь к нашим социальным сетям:
+
+<!-- markdownlint-disable MD033 -->
+
+<div class="badges-row-public">
+  <h4 align="center">
+    <a href="https://t.me/NGR_Softlab">
+      <img src="https://shields.io/badge/ngr-telegram-blue?logo=telegram&style=for-the-badge" alt="NGR Social Telegram" height="40" />
+    </a>
+    &emsp; &emsp; &emsp;
+    <a href="https://www.ngrsoftlab.ru/?utm_source=tg&utm_medium=start" >
+      <img src="https://shields.io/badge/ngr-web--page-yellow?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjIyLjcgMCA1MS45IDUxLjciPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNNzQuNSAwSDYzLjhsMy42IDMuNWMuNy43LjcgMS45IDAgMi43LS43LjctMS45LjctMi42IDBMNTguOSAwSDUzbDE0LjUgMTMuOWMuNy43LjcgMS45IDAgMi43LS43LjctMS45LjctMi42IDBMNDkgMGgtNi44bDI1LjMgMjQuM2MuNy43LjcgMS45IDAgMi43LS43LjctMS45LjctMi42IDBMMzkgMGgtNy43bDM2LjEgMzQuN2MuNy43LjcgMS45IDAgMi42cy0xLjkuNy0yLjYgMEwyOSAwYy0zLjUuNC02LjMgMy40LTYuMyA3djQ0LjdoMTAuNmwtMy42LTMuNGMtLjctLjctLjctMS45IDAtMi42czEuOS0uNyAyLjcgMGw1LjggNmg1LjlMMjkuNyAzNy45Yy0uNy0uNy0uNy0xLjkgMC0yLjcuNy0uNyAxLjktLjcgMi43IDBsMTUuOCAxNi40SDU1TDI5LjggMjcuNGMtLjctLjctLjctMS45IDAtMi43LjctLjcgMS45LS43IDIuNyAwbDI1LjggMjYuOEg2NkwyOS45IDE2LjljLS43LS43LS43LTEuOSAwLTIuNnMxLjktLjcgMi43IDBsMzUuNyAzNy4yYzMuNS0uMyA2LjMtMy4zIDYuMy03VjB6IiBmaWxsPSIjRjhBRDAwIi8+PC9zdmc+" alt="NGR Social Media" height="40" />
+    </a>
+  </h4>
+</div>
+
+<!-- markdownlint-enable MD033 -->
 
 ## Contents
 
@@ -83,24 +99,19 @@ pre-commit installed at .git/hooks/commit-msg
 pre-commit installed at .git/hooks/pre-push
 ```
 
->>> [!warning] Предупреждение
-
-- Чтобы проверить свои изменения, воспользуйтесь командой `pre-commit run --all-files`
-- Чтобы проверить конкретную задачу, воспользуетесь командой `pre-commit run <target> --all-files`
-- Если Вы понимаете что творите и хотите пропустить проверку `pre-commit`-ом воспользуйтесь `--no-verify`, пример `git commit -m "Добавил изменения и не хочу проверки" --no-verify`
->>>
+> [!warning]
+> Чтобы проверить свои изменения, воспользуйтесь командой `pre-commit run --all-files`.
+> Чтобы проверить конкретную задачу, воспользуетесь командой `pre-commit run <target> --all-files`.
 
 Собрать образ `Astra Linux based`
 
->>> [!warning] Предупреждение
-
-- Для установки продуктов Postgres Pro из закрытых репозиториев потребуется ключ доступа из Администрирование → Набор лицензий → Репозитории, ключи доступа доступны только Администраторам Наборов лицензий
-- Там же рядом с ключами доступа есть ссылки на репозитории и инструкции по их подключению для всех доступных продуктов
-- Ключи доступа являются идентификаторами организации, их следует беречь от утечек, как и любые другие учётные данные
-- В случае утечки ключ доступа может быть заблокирован Администратором Набора лицензий, а также сотрудниками Postgres Pro
-- При этом доступ к репозиториям, которые были подключены с этим ключом доступа, будет тоже заблокирован
-- Обратите внимание, что репозитории доступны только во время действия сертификатов на техническую поддержку соответствующих продуктов, после окончания действия сертификатов, репозитории закроются автоматически
->>>
+> [!warning]
+> Для установки продуктов Postgres Pro из закрытых репозиториев потребуется ключ доступа из Администрирование → Набор лицензий → Репозитории, ключи доступа доступны только Администраторам Наборов лицензий.
+> Там же рядом с ключами доступа есть ссылки на репозитории и инструкции по их подключению для всех доступных продуктов.
+> Ключи доступа являются идентификаторами организации, их следует беречь от утечек, как и любые другие учётные данные.
+> В случае утечки ключ доступа может быть заблокирован Администратором Набора лицензий, а также сотрудниками Postgres Pro.
+> При этом доступ к репозиториям, которые были подключены с этим ключом доступа, будет тоже заблокирован.
+> Обратите внимание, что репозитории доступны только во время действия сертификатов на техническую поддержку соответствующих продуктов, после окончания действия сертификатов, репозитории закроются автоматически
 
 Первым делом создайте из [действующего шаблона](configuration/auth.conf.example) файл с чувствительными данными, который обеспечить доступ до желаемых репозиториев:
 
@@ -128,10 +139,10 @@ docker build \
     .
 ```
 
->>> [!note] СУБД Postgres Pro Standard
-Может быть установлена из online-репозиториев, инструкции по их подключению к своей версии ОС можно получить тут: <https://postgrespro.ru/products/download/postgrespro/latest?forclientsonly=1&key=XXXX-XXXXXX-XXXXXX>, где XXXX-XXXXXX-XXXXXX — ключ доступа из Администрирование → Набор лицензий → Репозитории, ключи доступа доступны только Администраторам Наборов лицензий
-Документация [по установке](https://postgrespro.ru/docs/postgrespro/current/installation-bin)
->>>
+> [!note]
+> СУБД Postgres Pro Standard
+> Может быть установлена из online-репозиториев, инструкции по их подключению к своей версии ОС можно получить тут: <https://postgrespro.ru/products/download/postgrespro/latest?forclientsonly=1&key=XXXX-XXXXXX-XXXXXX>, где XXXX-XXXXXX-XXXXXX — ключ доступа из Администрирование → Набор лицензий → Репозитории, ключи доступа доступны только Администраторам Наборов лицензий.
+> Документация [по установке](https://postgrespro.ru/docs/postgrespro/current/installation-bin)
 
 Собрать `Astra Linux based` образ на другой платформе, например для 1С
 
@@ -152,9 +163,9 @@ docker build \
     .
 ```
 
->>> [!note] СУБД Postgres Pro для 1С
-Является тем же самым продуктом, что и обычный Postgres Pro Standard. Отличие только в лицензии, которая запрещает любое другое легальное использование данной СУБД, кроме как с 1С. Установка описана выше.
->>>
+> [!note]
+> СУБД Postgres Pro для 1С:
+> является тем же самым продуктом, что и обычный Postgres Pro Standard. Отличие только в лицензии, которая запрещает любое другое легальное использование данной СУБД, кроме как с 1С. Установка описана выше.
 
 ### [Build variables](#contents)
 
@@ -174,7 +185,7 @@ docker build \
 
 ## [Features of the certified version assembly](#contents)
 
-> [!warning] Предупреждение
+> [!warning]
 > Данные выше способы сопоставимы только не для сертифицированной версии!
 
 Для сертифицированной, необходимо скачать базовый ISO образ(на момент написания поставка осуществлялась именно так) выданной в ЛК postgres-a. Скачать его можно в `tmp` директорию. Далее перейти в данную директорию распаковать его при помощи команды `7z x -opostgres-cert *.iso` (если `7z` отсутствует, то его необходимо установить в ОС при помощи пакета `p7zip-full`(для deb) или иной, в зависимости от вашей системы). Финальный шаг - это подготовка к установке `postgres-pro-certified` в контейнерной среде
@@ -294,11 +305,9 @@ docker run --rm -d \
 
 Если Вы хотите выполнить дополнительную инициализацию в образе, добавьте один или несколько скриптов в директорию `/docker-entrypoint-initdb.d` в формате: `*.sql`, `*.sql.gz` `*.sh`. После того, как `docker-entrypoint.sh` вызывает создание пользователя и базы данных, следом выполнит все исполняемые `*.sh` скрипты, все `*.sql` файлы и экспортирует в качестве источника все неисполняемые `*.sh` скрипты, найденные в этом каталоге, для выполнения дальнейшей инициализации перед запуском службы.
 
->>> [!warning] Предупреждение
-
-- Скрипты в `/docker-entrypoint-initdb.d` запускаются только в том случае, если Вы запускаете контейнер с пустым каталогом данных
-- Любая существующая база данных останется нетронутой при запуске контейнера. Одна из распространенных проблем заключается в том, что если один из ваших `/docker-entrypoint-initdb.d` скриптов завершается неудачно (что приводит к завершению работы скрипта точки входа) и ваш оркестратор перезапускает контейнер с уже инициализированным каталогом данных, он не продолжит работу с вашими скриптами.
->>>
+> [!warning]
+> Скрипты в `/docker-entrypoint-initdb.d` запускаются только в том случае, если Вы запускаете контейнер с пустым каталогом данных.
+> Любая существующая база данных останется нетронутой при запуске контейнера. Одна из распространенных проблем заключается в том, что если один из ваших `/docker-entrypoint-initdb.d` скриптов завершается неудачно (что приводит к завершению работы скрипта точки входа) и ваш оркестратор перезапускает контейнер с уже инициализированным каталогом данных, он не продолжит работу с вашими скриптами
 
 - Пример запуска контейнера со скриптами инициализации. Тесты создадут как пространство в базе данных, так и проведут стресс тест, где создадут таблицу и произведут вставку 1'000'000 записей
 
@@ -418,7 +427,7 @@ sudo rm -rf test
 
 Миграция, в контейнерной среде, осуществляется при помощи встроенной утилиты `pg_dumpall`
 
-> [!warning] Предупреждение
+> [!warning]
 > Перед началом миграции оставьте поднятым/включенным старый контейнер, с актуальной базой
 
 Первым шагом, будет снятие дампа со старой базы. В среде контейнера это будет выглядеть следующим образом:
@@ -433,7 +442,7 @@ docker exec -t postgres pg_dumpall -c -U postgres > backup.sql
 cat backup.sql | docker exec -i postgres-pro psql -U postgres
 ```
 
-> [!note] Имейте в виду
+> [!note]
 > Доступы, пользователи могут отличаться. Данные, что выше, приведены в качестве примера со стандартной базой
 
 После проведенных манипуляций и отсутствии ошибок, можно сказать, что миграция завершена.

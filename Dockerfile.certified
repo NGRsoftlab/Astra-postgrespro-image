@@ -167,7 +167,9 @@ RUN \
 ## Prune unused files
 RUN \
     --mount=type=bind,source=./scripts,target=/usr/local/sbin,readonly \
-    find /run/ -mindepth 1 -ls -delete || : \
+    { \
+        find /run/ -mindepth 1 -ls -delete || :; \
+    } \
     && install -d -m 01777 /run/lock \
 ## Deduplication cleanup
     && dedup-clean.sh /usr/ \
