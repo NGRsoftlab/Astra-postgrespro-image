@@ -38,85 +38,106 @@ logger_tty_yellow="$(tty_mkbold 33)"
 logger_tty_blue="$(tty_mkbold 34)"
 
 #############################################
-## Log the given message at the given level.
+## Log the given message at the given level
 #############################################
 # Log template for all received.
-# All logs are written to stdout with a timestamp.
+# All logs are written to stdout with a timestamp
+# GLOBALS:
+#   none
 # ARGUMENTS:
 #   $1, the level with specific color style
+#   $*, the message text
+# RETURNS:
+#   0 if 'levelname' is defined, 1 if not defined
 # OUTPUTS:
-#   Write to stdout
+#   Write to stderr if error
 #############################################
 logger_template() {
-  local TIMESTAMP LEVELNAME COLOR TABS
-  TIMESTAMP=$(logger_time)
-  LEVELNAME="${1}"
-
-  ## Prepare actions
-  case "${LEVELNAME}" in
-    "INFO")
-      COLOR="${logger_tty_green}"
-      TABS=0
-      ;;
-    "WARNING")
-      COLOR="${logger_tty_yellow}"
-      TABS=0
-      ;;
-    "ERROR")
-      COLOR="${logger_tty_red}"
-      TABS=0
-      ;;
-    *)
-      echo "[timestamp: $(date +%F' '%T)] [level: ERROR] undefinded log name"
-      exit 1
-      ;;
-  esac
+  local timestamp color tabs
+  timestamp=$(logger_time)
+  local levelname="${1}"
 
   ## Translation to the left side of the received log name argument
   shift 1
 
+  ## Define log level
+  case "${levelname^^}" in
+    "INFO")
+      color="${logger_tty_green}"
+      tabs=0
+      ;;
+    "WARNING")
+      color="${logger_tty_yellow}"
+      tabs=0
+      ;;
+    "ERROR")
+      color="${logger_tty_red}"
+      tabs=0
+      ;;
+    *)
+      printf "[timestamp: %s] [level: %s] [file: %s] %s\n" \
+        "$(date +%F' '%T)" 'ERROR' "$(basename "${0}")" \
+        "undefined log name" >&2
+      exit 1
+      ;;
+  esac
+
   ## STDOUT
-  printf "[timestamp ${logger_tty_blue}${TIMESTAMP}${logger_tty_reset}] [levelname ${COLOR}${LEVELNAME}${logger_tty_reset}] %${TABS}s %s\n" "$*"
+  printf "%s %s %${tabs}s %s\n" \
+    "[timestamp ${logger_tty_blue}${timestamp}${logger_tty_reset}]" \
+    "[levelname ${color}${levelname}${logger_tty_reset}]" \
+    "$*"
+
+  ## For those who remain, we pass on 0 code
+  return 0
 }
 
 #############################################
 # Log the given message at level, INFO
+# GLOBALS:
+#   none
 # ARGUMENTS:
 #   $*, the info text to be printed
 # OUTPUTS:
-#   Write to stdout
+#   Write message to stdout
 #############################################
 logger_info_message() {
-  local MESSAGE="$*"
-  logger_template "INFO" "${MESSAGE}"
+  local message="$*"
+  logger_template "INFO" "${message}"
 }
 
 #############################################
 # Log the given message at level, WARNING
+# GLOBALS:
+#   none
 # ARGUMENTS:
 #   $*, the warning text to be printed
 # OUTPUTS:
-#   Write to stdout
+#   Write message to stdout
 #############################################
 logger_warning_message() {
-  local MESSAGE="$*"
-  logger_template "WARNING" "${MESSAGE}"
+  local message="$*"
+  logger_template "WARNING" "${message}"
 }
 
 #############################################
 # Log the given message at level, ERROR
+# GLOBALS:
+#   none
 # ARGUMENTS:
 #   $*, the error text to be printed
 # OUTPUTS:
-#   Write to stdout
+#   Write message to stdout
 #############################################
 logger_error_message() {
-  local MESSAGE="$*"
-  logger_template "ERROR" "${MESSAGE}"
+  local message="$*"
+  logger_template "ERROR" "${message}" >&2
 }
 
 #############################################
 # Log the given message at level, ERROR
+# GLOBALS:
+#   none
 # ARGUMENTS:
 #   $*, the fail text to be printed
 # OUTPUTS:
@@ -130,11 +151,15 @@ logger_fail() {
 #############################################
 # Check to see if this file is being run or
 # sourced from another script
+# GLOBALS:
+#   FUNCNAME
+# ARGUMENTS:
+#   none
 # RETURN:
-#   0 or 1
+#   0 if script was sourced, non-zero not sourced
 #############################################
 _is_sourced() {
-  # https://unix.stackexchange.com/a/215279
+  ## https://unix.stackexchange.com/a/215279
   [[ ${#FUNCNAME[@]} -ge 2 ]] \
     && [[ ${FUNCNAME[0]} == '_is_sourced' ]] \
     && [[ ${FUNCNAME[1]} == 'source' ]]
@@ -143,15 +168,16 @@ _is_sourced() {
 #############################################
 # Check arguments for an option that would cause postgres to stop
 # RETURN:
-#   0 or 1
+#   0 if contained help keyword, 1 if not contained
 #############################################
 _pg_want_help() {
   local arg
   for arg; do
-    case "$arg" in
-      # postgres --help | grep 'then exit'
-      # leaving out -C on purpose since it always fails and is unhelpful:
-      # postgres: could not access the server configuration file "/var/lib/postgresql/data/postgresql.conf": No such file or directory
+    case "${arg}" in
+      ## postgres --help | grep 'then exit'
+      ## leaving out -C on purpose since it always fails and is unhelpful:
+      ## postgres: could not access the server configuration file
+      ## "/var/lib/postgresql/data/postgresql.conf": No such file or directory
       -'?' | --help | --describe-config | -V | --version)
         return 0
         ;;
@@ -166,33 +192,48 @@ _pg_want_help() {
 # USAGE:
 #   file_env VAR [DEFAULT]
 #   ie: file_env 'XYZ_DB_PASSWORD' 'example'
+# GLOBALS:
+#   none
+# ARGUMENTS:
+#   $1, name of published variable
+#   $2, name of published value
 # RETURN:
 #   Filled value of type KEY=VALUE
 #############################################
 file_env() {
-  local var fileVar def
+  local var file_var def
   var="${1}"
-  fileVar="${var}_FILE"
+  file_var="${var}_FILE"
   def="${2:-}"
 
-  if [[ "${!var:-}" ]] && [[ "${!fileVar:-}" ]]; then
-    logger_fail "both ${var} and ${f}ileVar are set (but are exclusive)"
+  if [[ "${!var:-}" ]] && [[ "${!file_var:-}" ]]; then
+    logger_fail "both ${var} and ${file_var} are set (but are exclusive)"
   fi
-  local val="$def"
+
+  local val="${def}"
   if [[ "${!var:-}" ]]; then
     val="${!var}"
-  elif [[ "${!fileVar:-}" ]]; then
-    val="$(<"${!fileVar}")"
+  elif [[ "${!file_var:-}" ]]; then
+    val="$(<"${!file_var}")"
   fi
-  export "$var"="$val"
-  unset "${f}ileVar"
+  export "${var}"="${val}"
+  unset "${file_var}"
 }
 
 #############################################
 # Loads various settings that are used elsewhere in the script
 # This should be called before any other functions
+# GLOBALS:
+#   POSTGRES_PASSWORD
+#   POSTGRES_USER
+#   POSTGRES_DB
+#   POSTGRES_USER
+#   POSTGRES_INITDB_ARGS
+#   DATABASE_ALREADY_EXISTS
+# ARGUMENTS:
+#   none
 # RETURN:
-#   0 in success or stderr
+#   0 if establishing is success
 #############################################
 docker_setup_env() {
   file_env 'POSTGRES_PASSWORD'
@@ -203,6 +244,7 @@ docker_setup_env() {
 
   declare -g DATABASE_ALREADY_EXISTS
   : "${DATABASE_ALREADY_EXISTS:=}"
+
   ## Look specifically for PG_VERSION, as it is expected in the DB dir
   if [[ -s "${PGDATA}/PG_VERSION" ]]; then
     DATABASE_ALREADY_EXISTS='true'
@@ -212,68 +254,105 @@ docker_setup_env() {
 #############################################
 # Used to create initial postgres directories and
 # if run as root, ensure ownership to the "postgres" user
+# GLOBALS:
+#   PGDATA
+#   POSTGRES_INITDB_WALDIR
+# ARGUMENTS:
+#   none
 # RETURN:
-#   0 in success or stderr
+#   0 if create directory is success
 #############################################
 docker_create_db_directories() {
   local user
   user="$(id -u)"
 
   mkdir -p "${PGDATA}"
-  ## Ignore failure since there are cases where we can't chmod (and PostgreSQL might fail later anyhow - it's picky about permissions of this directory)
+  ## Ignore failure since there are cases where we can't chmod
+  ## (and PostgreSQL might fail later anyhow -
+  ## it's picky about permissions of this directory)
   chmod 00700 "${PGDATA}" || :
 
-  ## Ignore failure since it will be fine when using the image provided directory; see also https://github.com/docker-library/postgres/pull/289
+  ## Ignore failure since it will be fine when using the image provided
+  ## directory; see also https://github.com/docker-library/postgres/pull/289
   mkdir -p /var/run/postgresql || :
   chmod 03775 /var/run/postgresql || :
 
-  ## Create the transaction log directory before initdb is run so the directory is owned by the correct user
+  ## Create the transaction log directory before initdb is run so the
+  ## directory is owned by the correct user
   if [[ -n ${POSTGRES_INITDB_WALDIR:-} ]]; then
     mkdir -p "${POSTGRES_INITDB_WALDIR}"
-    [[ ${user} -ne 0 ]] || find "${POSTGRES_INITDB_WALDIR}" \! -user postgres -exec chown postgres '{}' +
+    [[ ${user} -ne 0 ]] \
+      || find "${POSTGRES_INITDB_WALDIR}" \
+        \! -user postgres \
+        -exec chown postgres '{}' +
     chmod 700 "${POSTGRES_INITDB_WALDIR}"
   fi
 
   ## Allow the container to be started with `--user`
-  [[ ${user} -ne 0 ]] || find "${PGDATA}" \! -user postgres -exec chown postgres '{}' +
-  [[ ${user} -ne 0 ]] || find /var/run/postgresql \! -user postgres -exec chown postgres '{}' +
+  [[ ${user} -ne 0 ]] \
+    || find "${PGDATA}" \! -user postgres -exec chown postgres '{}' +
+  [[ ${user} -ne 0 ]] \
+    || find /var/run/postgresql \! -user postgres -exec chown postgres '{}' +
 }
 
 #############################################
 # Print large warning if POSTGRES_PASSWORD is long
-# Warning if POSTGRES_PASSWORD is empty(and set default password) and POSTGRES_HOST_AUTH_METHOD is not 'trust'
+# Warning if POSTGRES_PASSWORD is empty(and set default password)
+# and POSTGRES_HOST_AUTH_METHOD is not 'trust'
 # Print large warning if POSTGRES_HOST_AUTH_METHOD is set to 'trust'
 # Assumes database is not set up, ie: [ -z "$DATABASE_ALREADY_EXISTS" ]
+# GLOBALS:
+#   PG_MAJOR
+#   POSTGRES_PASSWORD
+#   POSTGRES_HOST_AUTH_METHOD
+# ARGUMENTS:
+#   none
 # OUTPUT:
 #   Write to stdout
 #############################################
 docker_verify_minimum_env() {
   case "${PG_MAJOR:-}" in
     13)
-      # https://github.com/postgres/postgres/commit/67a472d71c98c3d2fa322a1b4013080b20720b98
-      # check password first so we can output the warning before postgres
-      # messes it up
+      ## https://github.com/postgres/postgres/commit/67a472d71c98c3d2fa322a1b4013080b20720b98
+      ## check password first so we can output the warning before postgres
+      ## messes it up
       if [[ ${#POSTGRES_PASSWORD} -ge 100 ]]; then
-        logger_warning_message 'The supplied POSTGRES_PASSWORD is 100+ characters'
-        logger_warning_message 'This will not work if used via PGPASSWORD with "psql"'
-        logger_warning_message 'https://www.postgresql.org/message-id/flat/E1Rqxp2-0004Qt-PL%40wrigleys.postgresql.org (BUG #6412)'
-        logger_warning_message 'https://github.com/docker-library/postgres/issues/507'
+        logger_warning_message \
+          'The supplied POSTGRES_PASSWORD is 100+ characters'
+        logger_warning_message \
+          'This will not work if used via PGPASSWORD with "psql"'
+        logger_warning_message \
+          'https://www.postgresql.org/message-id/flat/E1Rqxp2-0004Qt-PL%40wrigleys.postgresql.org (BUG #6412)'
+        logger_warning_message \
+          'https://github.com/docker-library/postgres/issues/507'
       fi
       ;;
   esac
   if [[ -z ${POSTGRES_PASSWORD} ]] && [[ 'trust' != "${POSTGRES_HOST_AUTH_METHOD}" ]]; then
     POSTGRES_PASSWORD="NGRSoftlab"
-    logger_warning_message "DEFAULT PASSWORD WAS USED!"
-    logger_warning_message "MOST IMPORTANT TO CHANGE TO YOUR PRIVATE PASSWORD!"
+    logger_warning_message \
+      "DEFAULT PASSWORD WAS USED!"
+    logger_warning_message \
+      "MOST IMPORTANT TO CHANGE TO YOUR PRIVATE PASSWORD!"
     export POSTGRES_PASSWORD
   fi
   if [[ 'trust' == "${POSTGRES_HOST_AUTH_METHOD}" ]]; then
-    logger_warning_message 'POSTGRES_HOST_AUTH_METHOD has been set to "trust"'
-    logger_warning_message 'This will allow anyone with access to the Postgres port to access your database without a password'
-    logger_warning_message 'This will allow anyone with access to the Postgres port to access your database without a password, even if POSTGRES_PASSWORD is set'
-    logger_warning_message 'See PostgreSQL documentation about "trust": https://www.postgresql.org/docs/current/auth-trust.html'
-    logger_warning_message 'It is not recommended to use POSTGRES_HOST_AUTH_METHOD=trust'
-    logger_warning_message 'Replace it with "-e POSTGRES_PASSWORD=password" instead to set a password in "docker run"'
+    logger_warning_message \
+      'POSTGRES_HOST_AUTH_METHOD has been set to "trust"'
+    logger_warning_message \
+      'This will allow anyone with access to the Postgres port' \
+      'to access your database without a password'
+    logger_warning_message \
+      'This will allow anyone with access to the Postgres port to access' \
+      'your database without a password, even if POSTGRES_PASSWORD is set'
+    logger_warning_message \
+      'See PostgreSQL documentation about "trust":' \
+      'https://www.postgresql.org/docs/current/auth-trust.html'
+    logger_warning_message \
+      'It is not recommended to use POSTGRES_HOST_AUTH_METHOD=trust'
+    logger_warning_message \
+      'Replace it with "-e POSTGRES_PASSWORD=password" instead to' \
+      'set a password in "docker run"'
   fi
 }
 
@@ -282,16 +361,29 @@ docker_verify_minimum_env() {
 # Arguments to `initdb` can be passed via POSTGRES_INITDB_ARGS or as arguments to this function
 # `initdb` automatically creates the "postgres", "template0", and "template1" dbnames
 # this is also where the database user is created, specified by `POSTGRES_USER` env
+# GLOBALS:
+#   NSS_WRAPPER_PASSWD
+#   LD_PRELOAD
+#   NSS_WRAPPER_GROUP
+#   DB_LOCALE
+#   POSTGRES_INITDB_WALDIR
+# ARGUMENTS:
+#   none
 # OUTPUT:
 #   Write to stdout
 #############################################
 docker_init_database_dir() {
-  ## "initdb" is particular about the current user existing in "/etc/passwd", so we use "nss_wrapper" to fake that if necessary
-  ## see https://github.com/docker-library/postgres/pull/253, https://github.com/docker-library/postgres/issues/359, https://cwrap.org/nss_wrapper.html
+  ## "initdb" is particular about the current user existing in "/etc/passwd",
+  ## so we use "nss_wrapper" to fake that if necessary
+  ## see:
+  ## https://github.com/docker-library/postgres/pull/253
+  ## https://github.com/docker-library/postgres/issues/359
+  ## https://cwrap.org/nss_wrapper.html
   local uid
   uid="$(id -u)"
   if ! getent passwd "${uid}" &>/dev/null; then
-    ## see if we can find a suitable "libnss_wrapper.so" (https://salsa.debian.org/sssd-team/nss-wrapper/-/commit/b9925a653a54e24d09d9b498a2d913729f7abb15)
+    ## see if we can find a suitable "libnss_wrapper.so"
+    ## https://salsa.debian.org/sssd-team/nss-wrapper/-/commit/b9925a653a54e24d09d9b498a2d913729f7abb15
     local wrapper
     for wrapper in {/usr,}/lib{/*,}/libnss_wrapper.so; do
       if [[ -s ${wrapper} ]]; then
@@ -300,7 +392,11 @@ docker_init_database_dir() {
         export LD_PRELOAD="${wrapper}" NSS_WRAPPER_PASSWD NSS_WRAPPER_GROUP
         local gid
         gid="$(id -g)"
-        printf 'postgres:x:%s:%s:PostgreSQL:%s:/bin/false\n' "${uid}" "${gid}" "${PGDATA}" >"${NSS_WRAPPER_PASSWD}"
+        printf \
+          'postgres:x:%s:%s:PostgreSQL:%s:/bin/false\n' \
+          "${uid}" \
+          "${gid}" \
+          "${PGDATA}" >"${NSS_WRAPPER_PASSWD}"
         printf 'postgres:x:%s:\n' "${gid}" >"${NSS_WRAPPER_GROUP}"
         break
       fi
@@ -312,10 +408,11 @@ docker_init_database_dir() {
   fi
 
   export DB_LOCALE="${LOCALE:-en_US.UTF8}"
-  ## --pwfile refuses to handle a properly-empty file (hence the "\n"): https://github.com/docker-library/postgres/issues/1025
+  ## --pwfile refuses to handle a properly-empty file (hence the "\n"):
+  ## https://github.com/docker-library/postgres/issues/1025
   eval 'initdb --username="${POSTGRES_USER}" --encoding=unicode --locale=${DB_LOCALE} --pwfile=<(printf "%s\n" "${POSTGRES_PASSWORD}") '"${POSTGRES_INITDB_ARGS}"' "$@"'
 
-  # unset/cleanup "nss_wrapper" bits
+  ## unset/cleanup "nss_wrapper" bits
   if [[ ${LD_PRELOAD:-} == */libnss_wrapper.so ]]; then
     rm -f "${NSS_WRAPPER_PASSWD}" "${NSS_WRAPPER_GROUP}"
     unset LD_PRELOAD NSS_WRAPPER_PASSWD NSS_WRAPPER_GROUP
@@ -326,16 +423,21 @@ docker_init_database_dir() {
 # Append POSTGRES_HOST_AUTH_METHOD to pg_hba.conf for "host" connections
 # all arguments will be passed along as arguments to `postgres` for
 # getting the value of 'password_encryption'
+# GLOBALS:
+#   POSTGRES_HOST_AUTH_METHOD
+#   PGDATA
+# ARGUMENTS:
+#   $1, database user
 # OUTPUT:
 #   Write to stdout
 #############################################
 pg_setup_hba_conf() {
-  # default authentication method is scram-sha-256
-  if [[ $1 == 'postgres' ]]; then
+  ## default authentication method is scram-sha-256
+  if [[ ${1} == 'postgres' ]]; then
     shift
   fi
   local auth
-  # check the default/configured encryption and use that as the auth method
+  ## check the default/configured encryption and use that as the auth method
   auth="$(postgres -C password_encryption "$@")"
   : "${POSTGRES_HOST_AUTH_METHOD:=$auth}"
   {
@@ -351,20 +453,28 @@ pg_setup_hba_conf() {
 #############################################
 # Start socket-only postgresql server for setting up or running scripts
 # all arguments will be passed along as arguments to `postgres` (via pg_ctl)
+# GLOBALS:
+#   NOTIFY_SOCKET
+#   PGPORT
+#   PGUSER
+#   POSTGRES_USER
+#   PGDATA
+# ARGUMENTS:
+#   $1, database user
 # OUTPUT:
 #   Write to stdout
 #############################################
 docker_temp_server_start() {
-  if [ "$1" = 'postgres' ]; then
+  if [[ ${1} == 'postgres' ]]; then
     shift
   fi
 
-  # internal start of server in order to allow setup using psql client
-  # does not listen on external TCP/IP and waits until start finishes
+  ## internal start of server in order to allow setup using psql client
+  ## does not listen on external TCP/IP and waits until start finishes
   set -- "$@" -c listen_addresses='' -p "${PGPORT:-5432}"
 
-  # unset NOTIFY_SOCKET so the temporary server doesn't prematurely notify
-  # any process supervisor.
+  ## unset NOTIFY_SOCKET so the temporary server doesn't prematurely notify
+  ## any process supervisor.
   # shellcheck disable=SC1007
   NOTIFY_SOCKET= \
     PGUSER="${PGUSER:-$POSTGRES_USER}" \
@@ -376,18 +486,22 @@ docker_temp_server_start() {
 #############################################
 # Create initial database
 # uses environment variables for input: POSTGRES_DB
+# GLOBALS:
+#   POSTGRES_DB
+# ARGUMENTS:
+#   none
 # OUTPUT:
 #   Write to stdout
 #############################################
 docker_setup_db() {
-  local DB_ALREADY_EXISTS
-  DB_ALREADY_EXISTS="$(
+  local db_already_exists
+  db_already_exists="$(
     # shellcheck disable=SC2097,SC1007,SC2098
     POSTGRES_DB= docker_process_sql --dbname postgres --set db="${POSTGRES_DB}" --tuples-only <<-'EOSQL'
       SELECT 1 FROM pg_database WHERE datname = :'db' ;
 EOSQL
   )"
-  if [[ -z ${DB_ALREADY_EXISTS} ]]; then
+  if [[ -z ${db_already_exists} ]]; then
     # shellcheck disable=SC2097,SC1007,SC2098
     POSTGRES_DB= docker_process_sql --dbname postgres --set db="${POSTGRES_DB}" <<-'EOSQL'
       CREATE DATABASE :"db" ;
@@ -403,6 +517,13 @@ EOSQL
 #   ie: docker_process_sql --dbname=mydb <<<'INSERT ...'
 #   ie: docker_process_sql -f my-file.sql
 #   ie: docker_process_sql <my-file.sql
+# GLOBALS:
+#   POSTGRES_DB
+#   POSTGRES_USER
+#   PGHOST
+#   PGHOSTADDR
+# ARGUMENTS:
+#   none
 # OUTPUT:
 #   Write to stdout
 #############################################
@@ -421,11 +542,15 @@ docker_process_sql() {
 # USAGE:
 #   docker_process_init_files [file [file [...]]]
 #   ie: docker_process_init_files /always-initdb.d/*
+# GLOBALS:
+#   none
+# ARGUMENTS:
+#   none
 # OUTPUT:
 #   Write to stdout
 #############################################
 docker_process_init_files() {
-  # psql here for backwards compatibility "${psql[@]}"
+  ## psql here for backwards compatibility "${psql[@]}"
   # shellcheck disable=SC2034
   psql=(docker_process_sql)
 
@@ -475,6 +600,12 @@ docker_process_init_files() {
 
 #############################################
 # Stop postgresql server after done setting up user and running scripts
+# GLOBALS:
+#   PGUSER
+#   DATABASE_ALREADY_EXISTS
+#   PGPASSWORD
+# ARGUMENTS:
+#   none
 # OUTPUT:
 #   Write to stdout
 #############################################
@@ -485,6 +616,18 @@ docker_temp_server_stop() {
 
 #############################################
 # Main entrypoint for init action
+# GLOBALS:
+#   BASH_SOURCE
+#   PGDATA
+#   PGPASSWORD
+#   POSTGRES_PASSWORD
+#   BINDIR
+#   PGDATA
+#   PG_OOM_ADJUST_FILE
+#   PG_OOM_ADJUST_VALUE
+#   _ADJPATH
+# ARGUMENTS:
+#   $@, arguments
 # OUTPUTS:
 #   Write to stdout
 #############################################
@@ -498,7 +641,7 @@ main() {
   # shellcheck disable=SC2163
   if [[ -f /etc/environment ]]; then
     while IFS= read -r line; do
-      [ -z "${line}" ] && continue
+      [[ -z ${line} ]] && continue
       case "${line}" in
         \#*) continue ;;
         *) export "${line}" ;;
@@ -506,19 +649,19 @@ main() {
     done </etc/environment
   fi
 
-  if [[ $1 == 'postgres' ]] && ! _pg_want_help "$@"; then
+  if [[ ${1} == 'postgres' ]] && ! _pg_want_help "$@"; then
     docker_setup_env
     ## Setup data directories and permissions (when run as root)
     docker_create_db_directories
     if [[ "$(id -u)" -eq '0' ]]; then
-      # ## Set OOM killer priority
+      ## Set OOM killer priority
       # echo -1000 > "${PG_OOM_ADJUST_FILE}"
 
-      # Then restart script as postgres user
+      ## Then restart script as postgres user
       exec su-exec postgres "${BASH_SOURCE[@]}" "$@"
     fi
 
-    # Check, can preview '/etc/issue'?
+    ## Check, can preview '/etc/issue'?
     if [[ -s /etc/issue ]] && [[ ! -t 0 ]]; then
       cat /etc/issue
     fi
@@ -527,14 +670,17 @@ main() {
     if [[ -z ${DATABASE_ALREADY_EXISTS} ]]; then
       docker_verify_minimum_env
 
-      # check dir permissions to reduce likelihood of half-initialized database
+      ## check dir permissions to reduce likelihood
+      ## of half-initialized database
       ls /docker-entrypoint-initdb.d/ >/dev/null
 
       docker_init_database_dir
       pg_setup_hba_conf "$@"
 
-      # PGPASSWORD is required for psql when authentication is required for 'local' connections via pg_hba.conf and is otherwise harmless
-      # e.g. when '--auth=md5' or '--auth-local=md5' is used in POSTGRES_INITDB_ARGS
+      ## PGPASSWORD is required for psql when authentication is required
+      ## for 'local' connections via pg_hba.conf and is otherwise harmless
+      ## e.g. when '--auth=md5'
+      ## or '--auth-local=md5' is used in POSTGRES_INITDB_ARGS
       export PGPASSWORD="${PGPASSWORD:-$POSTGRES_PASSWORD}"
       docker_temp_server_start "$@"
 
@@ -544,21 +690,31 @@ main() {
       docker_temp_server_stop
       unset PGPASSWORD
 
-      echo ".......WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob-WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob......."
+      echo \
+        ".......WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob-WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob......."
       logger_info_message "PostgreSQL init process complete"
-      logger_info_message "Ready for start up PostgresPro $("${BINDIR}"/postgres --version)"
+      logger_info_message \
+        "Ready for start up PostgresPro" \
+        "$("${BINDIR}"/postgres --version)"
     else
-      echo ".......WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob-WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob......."
-      logger_warning_message "PostgreSQL Database directory appears to contain a database"
+      echo \
+        ".......WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob-WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob......."
+      logger_warning_message \
+        "PostgreSQL Database directory" \
+        "appears to contain a database"
       logger_warning_message "Skipping initialization"
     fi
 
     ## set -e is stalking the returned code
     "${BINDIR}/check-db-dir" "${PGDATA}"
-    echo ".......WoOoOoOoOoOoOoOoOoOoOoOob-WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob-WoOoOoOoOoOob......."
+    echo \
+      ".......WoOoOoOoOoOoOoOoOoOoOoOob-WoOoOoOoOoOob-WoOoOoOoOoOoOoOoOoOoOoOob-WoOoOoOoOoOob......."
   fi
 
-  PG_OOM_ADJUST_FILE=-1000 PG_OOM_ADJUST_VALUE="${PG_OOM_ADJUST_VALUE}" _ADJPATH="${BINDIR}:/usr/bin:/usr/sbin:/bin:/sbin" exec "$@"
+  PG_OOM_ADJUST_FILE=-1000 \
+    PG_OOM_ADJUST_VALUE="${PG_OOM_ADJUST_VALUE}" \
+    _ADJPATH="${BINDIR}:/usr/bin:/usr/sbin:/bin:/sbin" \
+    exec "$@"
 }
 
 ## Start ep

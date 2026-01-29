@@ -183,6 +183,15 @@ RUN \
     && echo "Build PostgresPro container version ${version}" >> /etc/issue \
 ## Test su-exec
     && su-exec nobody true \
+## Get image package dump
+    && mkdir -p /usr/share/rocks \
+    && ( \
+        echo "# os-release" && cat /etc/os-release \
+        && echo "# dpkg-query" \
+        && dpkg-query -f \
+            '${db:Status-Abbrev},${binary:Package},${Version},${source:Package},${Source:Version}\n' \
+            -W \
+        ) >/usr/share/rocks/dpkg.query \
 ## Check can be preview /etc/issue
     && { \
         grep -qF 'cat /etc/issue' /etc/bash.bashrc \
@@ -231,8 +240,8 @@ ENV \
     PG_LOG="${PG_DIR}/pgstartup-data.log"
 ENV PATH="${BINDIR}:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-## Set volume creates a mount point with the specified name and marks it as holding
-## externally mounted volumes from native host or other containers
+## Set volume creates a mount point with the specified name and marks it as
+## holding externally mounted volumes from native host or other containers
 VOLUME "${PGDATA}"
 
 ## Be gentle and expose port
@@ -245,25 +254,24 @@ ENTRYPOINT [ "dumb-init", "docker-entrypoint.sh" ]
 
 ## Calls "Fast Shutdown mode" wherein new connections are disallowed and any
 ## in-progress transactions are aborted, allowing PostgreSQL to stop cleanly and
-## flush tables to disk.
+## flush tables to disk
 #
 ## See https://www.postgresql.org/docs/current/server-shutdown.html for more details
-## about available PostgreSQL server shutdown signals.
+## about available PostgreSQL server shutdown signals
 #
 ## See also https://www.postgresql.org/docs/current/server-start.html for further
 ## justification of this as the default value, namely that the example (and
 ## shipped) systemd service files use the "Fast Shutdown mode" for service
-## termination.
-
+## termination
 STOPSIGNAL SIGINT
 
 ## An additional setting that is recommended for all users regardless of this
 ## value is the runtime "--stop-timeout" (or your orchestrator/runtime's
 ## equivalent) for controlling how long to wait between sending the defined
-## STOPSIGNAL and sending SIGKILL.
+## STOPSIGNAL and sending SIGKILL
 #
 ## The default in most runtimes (such as Docker) is 10 seconds, and the
 ## documentation at https://www.postgresql.org/docs/current/server-start.html notes
-## that even 90 seconds may not be long enough in many instances.
+## that even 90 seconds may not be long enough in many instances
 
 CMD [ "postgres" ]

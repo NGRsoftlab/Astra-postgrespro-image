@@ -1,6 +1,6 @@
 CREATE TABLE public.license (
     id SERIAL PRIMARY KEY,
-    key TEXT NULL,
+    key_info TEXT NULL,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -8,4 +8,4 @@ CREATE TABLE public.license (
 ALTER TABLE public.license OWNER TO abuba;
 
 -- Вставка текста в key
-INSERT INTO license (key) VALUES ('License by NGRSoftlab with love');
+INSERT INTO license (key_info) VALUES ('License by NGRSoftlab with love');

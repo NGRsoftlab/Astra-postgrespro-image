@@ -75,8 +75,8 @@ Dockerfile для сборки PostgreSQL Pro, на базе отечестве�
 ## [Supported Technologies](#contents)
 
 <!-- markdownlint-disable MD033 -->
-|                                                 OS                                                  |                                                                                                                                    Postgres                                                                                                                                     | Status            |
-| :-------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------- |
+|                                                 OS                                                  |                                                                                                                                    Postgres                                                                                                                                     | Status             |
+| :-------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :----------------- |
 | ![Astra 1.8](https://img.shields.io/badge/Astra-1.8.x-00ADD8?style=flat&logo=astra&logoColor=white) | ![Postgres Pro 15](https://img.shields.io/badge/postgres--pro-15-%23316192.svg?style=flat&logo=postgresql&logoColor=white) <br> ![Postgres Pro 15 Certified](https://img.shields.io/badge/postgres--pro--certified-15-%23316192.svg?style=flat&logo=postgresql&logoColor=white) | ✅ Fully supported |
 
 <div align="center"> <sub> Таблица 1. Поддерживаемые версии Postgres Pro. </sub> </div>
@@ -106,7 +106,7 @@ pre-commit installed at .git/hooks/pre-push
 Собрать образ `Astra Linux based`
 
 > [!warning]
-> Для установки продуктов Postgres Pro из закрытых репозиториев потребуется ключ доступа из Администрирование → Набор лицензий → Репозитории, ключи доступа доступны только Администраторам Наборов лицензий.
+> Для установки продуктов Postgres Pro из закрытых репозиториев потребуется ключ доступа из Администрирование -> Набор лицензий -> Репозитории, ключи доступа доступны только Администраторам Наборов лицензий.
 > Там же рядом с ключами доступа есть ссылки на репозитории и инструкции по их подключению для всех доступных продуктов.
 > Ключи доступа являются идентификаторами организации, их следует беречь от утечек, как и любые другие учётные данные.
 > В случае утечки ключ доступа может быть заблокирован Администратором Набора лицензий, а также сотрудниками Postgres Pro.
@@ -141,7 +141,7 @@ docker build \
 
 > [!note]
 > СУБД Postgres Pro Standard
-> Может быть установлена из online-репозиториев, инструкции по их подключению к своей версии ОС можно получить тут: <https://postgrespro.ru/products/download/postgrespro/latest?forclientsonly=1&key=XXXX-XXXXXX-XXXXXX>, где XXXX-XXXXXX-XXXXXX — ключ доступа из Администрирование → Набор лицензий → Репозитории, ключи доступа доступны только Администраторам Наборов лицензий.
+> Может быть установлена из online-репозиториев, инструкции по их подключению к своей версии ОС можно получить тут: <https://postgrespro.ru/products/download/postgrespro/latest?forclientsonly=1&key=XXXX-XXXXXX-XXXXXX>, где XXXX-XXXXXX-XXXXXX - ключ доступа из Администрирование -> Набор лицензий -> Репозитории, ключи доступа доступны только Администраторам Наборов лицензий.
 > Документация [по установке](https://postgrespro.ru/docs/postgrespro/current/installation-bin)
 
 Собрать `Astra Linux based` образ на другой платформе, например для 1С
@@ -311,44 +311,44 @@ docker run --rm -d \
 
 - Пример запуска контейнера со скриптами инициализации. Тесты создадут как пространство в базе данных, так и проведут стресс тест, где создадут таблицу и произведут вставку 1'000'000 записей
 
-```shell
-## Export PostgreSQL version
-export ASTRA_VERSION='1.8.2-slim'
-export POSTGRES_VERSION="15-astra${ASTRA_VERSION}"
+    ```shell
+    ## Export PostgreSQL version
+    export ASTRA_VERSION='1.8.2-slim'
+    export POSTGRES_VERSION="15-astra${ASTRA_VERSION}"
 
-## Launch container
-docker run --rm -d \
-  --name postgres-pro \
-  -e DOCKER_DATABASE_USER=docker \
-  -e DOCKER_DATABASE_PASSWORD=test \
-  -e DOCKER_DATABASE_NAME=docker \
-  -e ABUBA_DATABASE_USER=abuba \
-  -e ABUBA_DATABASE_PASSWORD=haha \
-  -e ABUBA_DATABASE_NAME=abuba \
-  -e TZ="Europe/Moscow" \
-  -v "$(pwd)/configuration/init:/docker-entrypoint-initdb.d" \
-  -v "$(pwd)/configuration/sql-scripts:/sql-scripts" \
-  -p 5432:5432 \
-  postgres-pro:"${POSTGRES_VERSION}"
+    ## Launch container
+    docker run --rm -d \
+      --name postgres-pro \
+      -e DOCKER_DATABASE_USER=docker \
+      -e DOCKER_DATABASE_PASSWORD=test \
+      -e DOCKER_DATABASE_NAME=docker \
+      -e ABUBA_DATABASE_USER=abuba \
+      -e ABUBA_DATABASE_PASSWORD=haha \
+      -e ABUBA_DATABASE_NAME=abuba \
+      -e TZ="Europe/Moscow" \
+      -v "$(pwd)/configuration/init:/docker-entrypoint-initdb.d" \
+      -v "$(pwd)/configuration/sql-scripts:/sql-scripts" \
+      -p 5432:5432 \
+      postgres-pro:"${POSTGRES_VERSION}"
 
-## Checking database availability
-COUNTER=0
-until pg_isready -h localhost -p 5432 -U "${DOCKER_DATABASE_USER}" >/dev/null 2>&1; do
-  echo "Waiting for the database to be ready, attempt number: $((COUNTER+1))"
-  sleep 3
-  ((COUNTER++)) || true
-done
-echo "Ready to accept connection"
+    ## Checking database availability
+    COUNTER=0
+    until pg_isready -h localhost -p 5432 -U "${DOCKER_DATABASE_USER}" >/dev/null 2>&1; do
+      echo "Waiting for the database to be ready, attempt number: $((COUNTER+1))"
+      sleep 3
+      ((COUNTER++)) || true
+    done
+    echo "Ready to accept connection"
 
-## Check scripts work
-PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c 'SELECT key FROM license;'
-PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c "SELECT COUNT(*) FROM test_data;"
-PGPASSWORD='test' psql -U docker -h localhost -d docker -c "SELECT 'Tables exists' AS check, COUNT(*) AS tables FROM information_schema.tables;"
-PGPASSWORD='test' psql -U docker -h localhost -d docker -c "select now();"
+    ## Check scripts work
+    PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c 'SELECT key_info FROM license;'
+    PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c "SELECT COUNT(*) FROM test_data;"
+    PGPASSWORD='test' psql -U docker -h localhost -d docker -c "SELECT 'Tables exists' AS check, COUNT(*) AS tables FROM information_schema.tables;"
+    PGPASSWORD='test' psql -U docker -h localhost -d docker -c "select now();"
 
-## Large query be careful
-PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -c 'SELECT * FROM test_data;'
-```
+    ## Large query be careful
+    PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -c 'SELECT * FROM test_data;'
+    ```
 
 ### [Database Configuration](#contents)
 
@@ -417,7 +417,7 @@ sudo rm -rf test
 | `POSTGRES_INITDB_ARGS`      |                         ''                          |   string   |                                                                                                                                                                                                                                                                          Эта необязательная переменная среды может использоваться для отправки аргументов в `postgres initdb`. Значение представляет собой строку аргументов, разделенных пробелами, как и ожидает `postgres initdb`. Это полезно для добавления функций, таких как контрольные суммы страниц данных: `-e POSTGRES_INITDB_ARGS="--data-checksums"`. |
 | `POSTGRES_INITDB_WALDIR`    |                         ''                          |   string   |                                                                                                                                                                                                   Эта необязательная переменная среды может использоваться для определения другого местоположения журнала транзакций Postgres. По умолчанию журнал транзакций хранится в подкаталоге основной директории данных Postgres(`PGDATA`). Иногда может быть желательно хранить журнал транзакций в другом каталоге, который может поддерживаться хранилищем с другими характеристиками производительности или надежности. |
 | `POSTGRES_HOST_AUTH_METHOD` |                         ''                          |   string   |                                                                                                                                                                                    Эта необязательная переменная может использоваться для управления `auth-method` соединениями `host`, `all` для баз данных, `all` для пользователей и `all` для адресов. Если не указано, то используется `scram-sha-256`аутентификация по паролю. В неинициализированной базе данных это будет заполнено pg_hba.conf примерно этой строкой: `echo "host all all all ${POSTGRES_HOST_AUTH_METHOD}" >> pg_hba.conf` [^1] [^2] [^3] |
-| `PGDATA`                    | `/var/lib/pgpro/${postgrespro_package_suffix}/data` | stringspec | Эта необязательная переменная может использоваться для определения другого местоположения — например, подкаталога — для файлов базы данных. Значение по умолчанию — `/var/lib/pgpro/${postgrespro_package_suffix}/data`. Если используемый вами том данных — это точка монтирования файловой системы (например, постоянные диски `GCE`) или удаленная директория, которая не может быть назначена пользователю `postgres`(например, некоторые монтирования `NFS`), или содержит директории/файлы (например, `lost+found`), Postgres `initdb` требует создания подкаталога в точке монтирования для хранения данных. |
+| `PGDATA`                    | `/var/lib/pgpro/${postgrespro_package_suffix}/data` | stringspec | Эта необязательная переменная может использоваться для определения другого местоположения - например, подкаталога - для файлов базы данных. Значение по умолчанию - `/var/lib/pgpro/${postgrespro_package_suffix}/data`. Если используемый вами том данных - это точка монтирования файловой системы (например, постоянные диски `GCE`) или удаленная директория, которая не может быть назначена пользователю `postgres`(например, некоторые монтирования `NFS`), или содержит директории/файлы (например, `lost+found`), Postgres `initdb` требует создания подкаталога в точке монтирования для хранения данных. |
 
 <!-- markdownlint-disable MD033 -->
 <div align="center"> <sub> Таблица 4. Переопределяемые переменные для [Docker-entrypoint.sh](configuration/docker-entrypoint.sh). </sub> </div>
@@ -529,7 +529,7 @@ postgres=# SELECT * FROM pg_available_extensions;
 
 ## [Package information](#contents)
 
-В постовляемом репозитории существует множество связанных пакетов, имеющих отношение к `PostgreSQL Pro`. На примере 15 версии, при поиске посредством `apt search postgrespro` или `apt-cache search postgrespro | sed -e 's# - # | #g' -e 's#^#| #g' -e 's#$# |#g'`. Подробнее [тут](https://postgrespro.ru/docs/postgrespro/current/binary-installation-on-linux#CHOOSING-PGPRO-PACKAGES)
+В поставляемом репозитории существует множество связанных пакетов, имеющих отношение к `PostgreSQL Pro`. На примере 15 версии, при поиске посредством `apt search postgrespro` или `apt-cache search postgrespro | sed -e 's# - # | #g' -e 's#^#| #g' -e 's#$# |#g'`. Подробнее [тут](https://postgrespro.ru/docs/postgrespro/current/binary-installation-on-linux#CHOOSING-PGPRO-PACKAGES)
 
 |                 Имя                 | Описание                                                                       |
 | :---------------------------------: | :----------------------------------------------------------------------------- |
@@ -559,52 +559,52 @@ postgres=# SELECT * FROM pg_available_extensions;
 |  postgrespro-std-15-server-dbgsym   | debug symbols for postgrespro-std-15-server                                    |
 
 <!-- markdownlint-disable MD033 -->
-<div align="center"> <sub> Таблица 5. Список поставляемых пакетов, из оффициально репозитория Postgres Pro. </sub> </div>
+<div align="center"> <sub> Таблица 5. Список поставляемых пакетов, из официально репозитория Postgres Pro. </sub> </div>
 <!-- markdownlint-enable MD033 -->
 
-Также доступен список поддерживаемых пакетов, постовляемых для PostgreSQL Pro. Существует несколько способов проверить:
+Также доступен список поддерживаемых пакетов, поставляемых для PostgreSQL Pro. Существует несколько способов проверить:
 
 - При помощи `apt-cache policy`
 
-```shell
-$ apt-cache policy postgrespro-std-15-server
+    ```shell
+    $ apt-cache policy postgrespro-std-15-server
 
-postgrespro-std-15-server:
-  Installed: 15.12.1-1.18x8664
-  Candidate: 15.12.1-1.18x8664
-  Version table:
- *** 15.12.1-1.18x8664 900
-        900 http://repo.postgrespro.ru/std/std-15/astra-smolensk/1.8 1.8_x86-64/main amd64 Packages
-        100 /var/lib/dpkg/status
-```
+    postgrespro-std-15-server:
+      Installed: 15.12.1-1.18x8664
+      Candidate: 15.12.1-1.18x8664
+      Version table:
+    *** 15.12.1-1.18x8664 900
+            900 http://repo.postgrespro.ru/std/std-15/astra-smolensk/1.8 1.8_x86-64/main amd64 Packages
+            100 /var/lib/dpkg/status
+    ```
 
 - При помощи `apt-cache madison`
 
-```shell
-$ apt-cache madison postgrespro-std-15-server
+    ```shell
+    $ apt-cache madison postgrespro-std-15-server
 
-postgrespro-std-15-server | 15.12.1-1.18x8664 | http://repo.postgrespro.ru/std/std-15/astra-smolensk/1.8 1.8_x86-64/main amd64 Packages
-```
+    postgrespro-std-15-server | 15.12.1-1.18x8664 | http://repo.postgrespro.ru/std/std-15/astra-smolensk/1.8 1.8_x86-64/main amd64 Packages
+    ```
 
 - При помощи `apt list -a`
 
-```shell
-$ apt list -a postgrespro-std-15-server
+    ```shell
+    $ apt list -a postgrespro-std-15-server
 
-postgrespro-std-15-server/unknown,now 15.12.1-1.18x8664 amd64 [installed]
-```
+    postgrespro-std-15-server/unknown,now 15.12.1-1.18x8664 amd64 [installed]
+    ```
 
 ## [Issues and solutions](#contents)
 
-- [По умолчанию](configuration/docker-entrypoint.sh#L333) PostgreSQL Pro имеет `scram-sha-256` метод аутентификации, что [отличается](https://github.com/docker-library/postgres/blob/master/15/bookworm/docker-entrypoint.sh#L242) от PostgreSQL. Чтобы предотвратить отличного от PostgreSQL поведения, при миграции на Pro версию, следует дополнительно передать переменную `POSTGRES_HOST_AUTH_METHOD`, которая вернёт поведение как в раннем Postgres-e. Пример передачи: `-e POSTGRES_HOST_AUTH_METHOD=md5`. Альтернативно, можно замаппить `pg_hba.conf` [файл](https://www.postgresql.org/docs/current/auth-pg-hba-conf.html), предварительно экспортировав его из старого Postgres-а, но данный вариант ялвяеться грязным трюком(dirty trick).
+- [По умолчанию](configuration/docker-entrypoint.sh#L333) PostgreSQL Pro имеет `scram-sha-256` метод аутентификации, что [отличается](https://github.com/docker-library/postgres/blob/master/15/bookworm/docker-entrypoint.sh#L242) от PostgreSQL. Чтобы предотвратить отличного от PostgreSQL поведения, при миграции на Pro версию, следует дополнительно передать переменную `POSTGRES_HOST_AUTH_METHOD`, которая вернёт поведение как в раннем Postgres-e. Пример передачи: `-e POSTGRES_HOST_AUTH_METHOD=md5`. Альтернативно, можно замаппить `pg_hba.conf` [файл](https://www.postgresql.org/docs/current/auth-pg-hba-conf.html), предварительно экспортировав его из старого Postgres-а, но данный вариант является грязным трюком(dirty trick).
 
 - Если, при старте PostgreSQL Pro на данные прошлой базы, Вы встречаетесь с содержимым, что представлены ниже, то необходимо осуществить [плановую миграцию](#migration-plan) на PostgreSQL Pro.
 
-```text
-...
-An old version of the database format was found.
-You need to dump and reload before using Postgres Pro std-15.
-```
+    ```text
+    ...
+    An old version of the database format was found.
+    You need to dump and reload before using Postgres Pro std-15.
+    ```
 
 ## [Miscellaneous](#contents)
 
