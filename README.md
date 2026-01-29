@@ -75,8 +75,8 @@ Dockerfile для сборки PostgreSQL Pro, на базе отечестве�
 ## [Supported Technologies](#contents)
 
 <!-- markdownlint-disable MD033 -->
-|                                                 OS                                                  |                                                                                                                                    Postgres                                                                                                                                     | Status            |
-| :-------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------- |
+|                                                 OS                                                  |                                                                                                                                    Postgres                                                                                                                                     | Status             |
+| :-------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :----------------- |
 | ![Astra 1.8](https://img.shields.io/badge/Astra-1.8.x-00ADD8?style=flat&logo=astra&logoColor=white) | ![Postgres Pro 15](https://img.shields.io/badge/postgres--pro-15-%23316192.svg?style=flat&logo=postgresql&logoColor=white) <br> ![Postgres Pro 15 Certified](https://img.shields.io/badge/postgres--pro--certified-15-%23316192.svg?style=flat&logo=postgresql&logoColor=white) | ✅ Fully supported |
 
 <div align="center"> <sub> Таблица 1. Поддерживаемые версии Postgres Pro. </sub> </div>
@@ -341,7 +341,7 @@ done
 echo "Ready to accept connection"
 
 ## Check scripts work
-PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c 'SELECT key FROM license;'
+PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c 'SELECT key_info FROM license;'
 PGPASSWORD='haha' psql -U abuba -h localhost -d abuba -qAXt -c "SELECT COUNT(*) FROM test_data;"
 PGPASSWORD='test' psql -U docker -h localhost -d docker -c "SELECT 'Tables exists' AS check, COUNT(*) AS tables FROM information_schema.tables;"
 PGPASSWORD='test' psql -U docker -h localhost -d docker -c "select now();"
